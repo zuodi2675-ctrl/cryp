@@ -6,6 +6,8 @@
     <title>加密货币实时价格与分析</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- D3.js for charting -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
@@ -13,8 +15,10 @@
             background-color: #0d1117;
             color: #c9d1d9;
         }
-        .container {
+        .main-container {
             max-width: 900px;
+            transform-origin: center center;
+            transition: transform 0.2s ease-in-out;
         }
         .price-card {
             min-width: 200px;
@@ -40,13 +44,48 @@
         .modal {
             transition: opacity 0.3s ease-in-out;
         }
+        .chart-container {
+            width: 100%;
+            height: 200px;
+        }
+        .chart-tooltip {
+            position: absolute;
+            text-align: center;
+            width: auto;
+            height: auto;
+            padding: 8px;
+            font-size: 12px;
+            background: #2d3748; /* bg-gray-800 */
+            border: 0px;
+            border-radius: 8px;
+            pointer-events: none;
+            color: #fff;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
     </style>
 </head>
 <body class="p-4">
 
     <!-- 主容器 -->
-    <div class="container mx-auto p-6 bg-gray-800 rounded-2xl shadow-xl">
-        <h1 class="text-3xl font-bold text-center mb-8 text-white">实时加密货币价格</h1>
+    <div class="main-container mx-auto p-6 bg-gray-800 rounded-2xl shadow-xl">
+        
+        <!-- 5分钟倒计时、周期计数器和新的提醒按钮排列在同一行 -->
+        <div class="flex items-center justify-between bg-gray-900 rounded-xl p-4 mb-8 shadow-inner">
+            <h2 class="text-lg font-semibold text-gray-300">5分钟趋势分析周期</h2>
+            <p id="timer-display" class="text-4xl font-bold text-yellow-400 mt-2">
+                <span id="cycle-countdown">05:00</span>
+                <span class="text-lg text-gray-400 font-normal ml-4" id="cycle-counter"> (第 1 周期 / 12)</span>
+            </p>
+            <!-- 统一的提醒设置按钮 -->
+            <button id="set-alert-main-btn" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold py-2 px-6 mt-0 rounded-full text-sm transition-colors duration-300">设置价格提醒</button>
+        </div>
+
+        <!-- 缩放控制按钮 -->
+        <div class="flex items-center justify-center mb-6 space-x-4">
+            <button id="zoom-out" class="w-10 h-10 bg-gray-700 text-white rounded-full font-bold text-2xl hover:bg-gray-600 transition-colors">-</button>
+            <span class="text-lg text-gray-400">缩放</span>
+            <button id="zoom-in" class="w-10 h-10 bg-gray-700 text-white rounded-full font-bold text-2xl hover:bg-gray-600 transition-colors">+</button>
+        </div>
 
         <!-- 实时价格展示区 -->
         <div id="price-display" class="flex flex-col gap-6 mb-8">
@@ -57,16 +96,14 @@
                     <p class="flex items-center text-4xl font-bold text-white">
                         <span id="btc-price">-</span>
                         <span id="btc-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="btc-stars" class="ml-2 text-xl text-yellow-400"></span>
                     </p>
                     <div class="flex flex-col space-y-2">
-                         <button id="btc-analyze-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-colors duration-300 whitespace-nowrap">
-                            AI 交易分析
-                        </button>
+                         <!-- "AI 交易分析" 按钮已移除 -->
                     </div>
                 </div>
-                <div class="mt-4 text-center">
-                    <button class="alert-btn bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold py-2 px-4 rounded-full text-sm transition-colors duration-300">设置提醒</button>
-                </div>
+                 <!-- 价格曲线图容器 -->
+                <div id="btc-chart-container" class="chart-container mt-4"></div>
             </div>
             <!-- ETH 价格卡片 -->
             <div id="eth-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="ETH">
@@ -75,16 +112,14 @@
                     <p class="flex items-center text-4xl font-bold text-white">
                         <span id="eth-price">-</span>
                         <span id="eth-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="eth-stars" class="ml-2 text-xl text-yellow-400"></span>
                     </p>
                     <div class="flex flex-col space-y-2">
-                        <button id="eth-analyze-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-colors duration-300 whitespace-nowrap">
-                            AI 交易分析
-                        </button>
+                        <!-- "AI 交易分析" 按钮已移除 -->
                     </div>
                 </div>
-                <div class="mt-4 text-center">
-                    <button class="alert-btn bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold py-2 px-4 rounded-full text-sm transition-colors duration-300">设置提醒</button>
-                </div>
+                <!-- 价格曲线图容器 -->
+                <div id="eth-chart-container" class="chart-container mt-4"></div>
             </div>
             <!-- SOL 价格卡片 -->
             <div id="sol-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="SOL">
@@ -93,16 +128,88 @@
                     <p class="flex items-center text-4xl font-bold text-white">
                         <span id="sol-price">-</span>
                         <span id="sol-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="sol-stars" class="ml-2 text-xl text-yellow-400"></span>
                     </p>
                     <div class="flex flex-col space-y-2">
-                        <button id="sol-analyze-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition-colors duration-300 whitespace-nowrap">
-                            AI 交易分析
-                        </button>
+                        <!-- "AI 交易分析" 按钮已移除 -->
                     </div>
                 </div>
-                <div class="mt-4 text-center">
-                    <button class="alert-btn bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold py-2 px-4 rounded-full text-sm transition-colors duration-300">设置提醒</button>
+                <!-- 价格曲线图容器 -->
+                <div id="sol-chart-container" class="chart-container mt-4"></div>
+            </div>
+
+            <!-- 新增币种卡片 -->
+            <!-- PEOPLE 价格卡片 -->
+            <div id="people-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="PEOPLE">
+                <h2 class="text-xl font-semibold mb-2 text-amber-400">PEOPLE/USDT</h2>
+                <div class="flex items-center justify-between">
+                    <p class="flex items-center text-4xl font-bold text-white">
+                        <span id="people-price">-</span>
+                        <span id="people-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="people-stars" class="ml-2 text-xl text-yellow-400"></span>
+                    </p>
                 </div>
+                <div id="people-chart-container" class="chart-container mt-4"></div>
+            </div>
+            <!-- PNUT 价格卡片 -->
+            <div id="pnut-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="PNUT">
+                <h2 class="text-xl font-semibold mb-2 text-pink-400">PNUT/USDT</h2>
+                <div class="flex items-center justify-between">
+                    <p class="flex items-center text-4xl font-bold text-white">
+                        <span id="pnut-price">-</span>
+                        <span id="pnut-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="pnut-stars" class="ml-2 text-xl text-yellow-400"></span>
+                    </p>
+                </div>
+                <div id="pnut-chart-container" class="chart-container mt-4"></div>
+            </div>
+            <!-- SUI 价格卡片 -->
+            <div id="sui-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="SUI">
+                <h2 class="text-xl font-semibold mb-2 text-teal-400">SUI/USDT</h2>
+                <div class="flex items-center justify-between">
+                    <p class="flex items-center text-4xl font-bold text-white">
+                        <span id="sui-price">-</span>
+                        <span id="sui-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="sui-stars" class="ml-2 text-xl text-yellow-400"></span>
+                    </p>
+                </div>
+                <div id="sui-chart-container" class="chart-container mt-4"></div>
+            </div>
+            <!-- WIF 价格卡片 -->
+            <div id="wif-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="WIF">
+                <h2 class="text-xl font-semibold mb-2 text-orange-400">WIF/USDT</h2>
+                <div class="flex items-center justify-between">
+                    <p class="flex items-center text-4xl font-bold text-white">
+                        <span id="wif-price">-</span>
+                        <span id="wif-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="wif-stars" class="ml-2 text-xl text-yellow-400"></span>
+                    </p>
+                </div>
+                <div id="wif-chart-container" class="chart-container mt-4"></div>
+            </div>
+            <!-- AAVE 价格卡片 -->
+            <div id="aave-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="AAVE">
+                <h2 class="text-xl font-semibold mb-2 text-indigo-400">AAVE/USDT</h2>
+                <div class="flex items-center justify-between">
+                    <p class="flex items-center text-4xl font-bold text-white">
+                        <span id="aave-price">-</span>
+                        <span id="aave-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="aave-stars" class="ml-2 text-xl text-yellow-400"></span>
+                    </p>
+                </div>
+                <div id="aave-chart-container" class="chart-container mt-4"></div>
+            </div>
+            <!-- CRV 价格卡片 -->
+            <div id="crv-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="CRV">
+                <h2 class="text-xl font-semibold mb-2 text-red-400">CRV/USDT</h2>
+                <div class="flex items-center justify-between">
+                    <p class="flex items-center text-4xl font-bold text-white">
+                        <span id="crv-price">-</span>
+                        <span id="crv-trend-indicator" class="ml-2 text-2xl font-bold"></span>
+                        <span id="crv-stars" class="ml-2 text-xl text-yellow-400"></span>
+                    </p>
+                </div>
+                <div id="crv-chart-container" class="chart-container mt-4"></div>
             </div>
         </div>
 
@@ -110,8 +217,20 @@
         <div id="alert-input-modal" class="hidden modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm">
                 <h2 id="alert-input-title" class="text-2xl font-bold text-white mb-4 text-center">设置价格提醒</h2>
-                <p id="alert-input-message" class="text-lg text-gray-300 mb-6 text-center"></p>
                 <div class="flex flex-col gap-4">
+                    <!-- 新增币种选择下拉菜单 -->
+                    <select id="alert-symbol-select" class="bg-gray-700 text-white p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="BTCUSDT">BTC/USDT</option>
+                        <option value="ETHUSDT">ETH/USDT</option>
+                        <option value="SOLUSDT">SOL/USDT</option>
+                        <option value="PEOPLEUSDT">PEOPLE/USDT</option>
+                        <option value="PNUTUSDT">PNUT/USDT</option>
+                        <option value="SUIUSDT">SUI/USDT</option>
+                        <option value="WIFUSDT">WIF/USDT</option>
+                        <option value="AAVEUSDT">AAVE/USDT</option>
+                        <option value="CRVUSDT">CRV/USDT</option>
+                    </select>
+                    <p id="alert-input-message" class="text-lg text-gray-300 mb-2 text-center"></p>
                     <input id="alert-price-input" type="number" step="0.01" class="bg-gray-700 text-white p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入提醒价格">
                     <div class="flex justify-between gap-4 mt-4">
                         <button id="cancel-alert-btn" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full transition-colors duration-300">取消</button>
@@ -129,18 +248,6 @@
                 <button id="close-notification-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-colors duration-300">确定</button>
             </div>
         </div>
-
-        <!-- 分析报告展示区 -->
-        <div id="analysis-report" class="hidden mt-10 p-8 bg-gray-700 rounded-2xl shadow-xl">
-            <h2 id="report-title" class="text-3xl font-bold text-white mb-6 text-center">AI 交易分析报告</h2>
-            <div id="report-content" class="prose max-w-none text-gray-300 leading-relaxed">
-                <!-- 报告内容将在这里动态插入 -->
-                <div class="flex items-center justify-center space-x-2">
-                    <div class="loading-spinner"></div>
-                    <span class="text-lg text-gray-400">正在生成报告，请稍候...</span>
-                </div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -154,55 +261,76 @@
         const symbols = {
             'BTC': 'BTCUSDT',
             'ETH': 'ETHUSDT',
-            'SOL': 'SOLUSDT'
+            'SOL': 'SOLUSDT',
+            'PEOPLE': 'PEOPLEUSDT',
+            'PNUT': 'PNUTUSDT',
+            'SUI': 'SUIUSDT',
+            'WIF': 'WIFUSDT',
+            'AAVE': 'AAVEUSDT',
+            'CRV': 'CRVUSDT'
+        };
+        const symbolMap = {
+            'BTCUSDT': 'BTC',
+            'ETHUSDT': 'ETH',
+            'SOLUSDT': 'SOL',
+            'PEOPLEUSDT': 'PEOPLE',
+            'PNUTUSDT': 'PNUT',
+            'SUIUSDT': 'SUI',
+            'WIFUSDT': 'WIF',
+            'AAVEUSDT': 'AAVE',
+            'CRVUSDT': 'CRV'
         };
 
         // 获取 DOM 元素
-        const btcPriceEl = document.getElementById('btc-price');
-        const ethPriceEl = document.getElementById('eth-price');
-        const solPriceEl = document.getElementById('sol-price');
-        const btcIndicatorEl = document.getElementById('btc-trend-indicator');
-        const ethIndicatorEl = document.getElementById('eth-trend-indicator');
-        const solIndicatorEl = document.getElementById('sol-trend-indicator');
-        const btcAnalyzeBtn = document.getElementById('btc-analyze-btn');
-        const ethAnalyzeBtn = document.getElementById('eth-analyze-btn');
-        const solAnalyzeBtn = document.getElementById('sol-analyze-btn');
-        const analysisReport = document.getElementById('analysis-report');
-        const reportTitle = document.getElementById('report-title');
-        const reportContent = document.getElementById('report-content');
-        const priceCards = document.querySelectorAll('.price-card');
-        const alertButtons = document.querySelectorAll('.alert-btn');
+        const mainContainer = document.querySelector('.main-container');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const setAlertMainBtn = document.getElementById('set-alert-main-btn');
         const notificationModal = document.getElementById('notification-modal');
         const notificationTitle = document.getElementById('notification-title');
         const notificationMessage = document.getElementById('notification-message');
         const closeNotificationBtn = document.getElementById('close-notification-btn');
-
-        // 价格提醒输入模态框元素
+        const cycleCountdownEl = document.getElementById('cycle-countdown');
+        const cycleCounterEl = document.getElementById('cycle-counter');
         const alertInputModal = document.getElementById('alert-input-modal');
         const alertInputTitle = document.getElementById('alert-input-title');
         const alertInputMessage = document.getElementById('alert-input-message');
         const alertPriceInput = document.getElementById('alert-price-input');
         const cancelAlertBtn = document.getElementById('cancel-alert-btn');
         const setAlertBtn = document.getElementById('set-alert-btn');
+        const alertSymbolSelect = document.getElementById('alert-symbol-select');
+        
+        // 缩放状态
+        let currentScale = 1.0;
+        const maxScale = 1.5;
+        const minScale = 0.8;
+        const scaleStep = 0.1;
 
         // 存储上一个周期的价格
-        let previousPrices = {
-            'BTCUSDT': null,
-            'ETHUSDT': null,
-            'SOLUSDT': null
-        };
+        let previousPrices = {};
+        Object.values(symbols).forEach(s => previousPrices[s] = null);
 
         // 存储价格历史，用于趋势判断（最近3个价格）
-        let priceHistory = {
-            'BTCUSDT': [],
-            'ETHUSDT': [],
-            'SOLUSDT': []
-        };
+        let priceHistory = {};
+        Object.values(symbols).forEach(s => priceHistory[s] = []);
 
         // 存储价格提醒
         let priceAlerts = {};
+        Object.values(symbols).forEach(s => priceAlerts[s] = null);
+
+        // 用于跟踪5分钟趋势的五角星数量
+        let trendStars = {};
+        Object.values(symbols).forEach(s => trendStars[s] = 0);
+
+        // 用于跟踪上一个5分钟K线的收盘价，以便判断趋势
+        let lastFiveMinClose = {};
+        Object.values(symbols).forEach(s => lastFiveMinClose[s] = null);
         
-        let currentAlertSymbol = null; // 存储当前价格提醒的币种符号
+        // 倒计时和周期计数器状态
+        let countdownMinutes = 5;
+        let countdownSeconds = 0;
+        let cycleCount = 1;
+        const maxCycles = 12;
 
         /**
          * 使用指数退避安全地调用 API
@@ -210,7 +338,7 @@
          * @param {number} retries - 重试次数
          */
         async function fetchWithRetry(apiCall, retries = 3) {
-            let delay = 1000; // 初始延迟 1 秒
+            let delay = 1000;
             for (let i = 0; i < retries; i++) {
                 try {
                     return await apiCall();
@@ -218,7 +346,7 @@
                     console.error(`API 调用失败，正在重试第 ${i + 1} 次...`, error);
                     if (i < retries - 1) {
                         await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2; // 指数增加延迟
+                        delay *= 2;
                     } else {
                         throw error;
                     }
@@ -243,20 +371,34 @@
         /**
          * 从 Binance API 获取 K 线数据
          * @param {string} symbol - 货币符号，例如 'BTCUSDT'
-         * @param {string} interval - 时间间隔，例如 '1h' 或 '15m'
+         * @param {string} interval - 时间间隔，例如 '1h' 或 '5m'
          * @returns {Promise<Array>} - K 线数据数组
          */
         async function fetchKlines(symbol, interval = '5m') {
-            const response = await fetchWithRetry(() => fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=100`));
+            const response = await fetchWithRetry(() => fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=2`));
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`获取 K 线数据失败: ${response.status} ${response.statusText} - ${errorText}`);
             }
             const data = await response.json();
-            if (!Array.isArray(data) || data.length === 0) {
+            if (!Array.isArray(data) || data.length < 2) {
                  throw new Error('K 线数据为空或格式不正确');
             }
             return data;
+        }
+        
+        /**
+         * 从 Binance API 获取最近一小时的 K 线数据 (1分钟间隔)
+         * @param {string} symbol - 货币符号，例如 'BTCUSDT'
+         * @returns {Promise<Array>} - K 线数据数组
+         */
+        async function fetchHourlyData(symbol) {
+            const response = await fetchWithRetry(() => fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=60`));
+            if (!response.ok) {
+                 const errorText = await response.text();
+                 throw new Error(`获取小时数据失败: ${response.status} ${response.statusText} - ${errorText}`);
+            }
+            return await response.json();
         }
 
         /**
@@ -264,21 +406,21 @@
          */
         async function updatePrices() {
             try {
-                // 并行获取价格以提高效率
-                const [btcPrice, ethPrice, solPrice] = await Promise.all([
-                    fetchPrice(symbols.BTC),
-                    fetchPrice(symbols.ETH),
-                    fetchPrice(symbols.SOL)
-                ]);
+                // 动态生成所有币种的 API 请求
+                const pricePromises = Object.values(symbols).map(symbol => fetchPrice(symbol));
+                const allPrices = await Promise.all(pricePromises);
 
-                updatePriceDisplay(btcPriceEl, symbols.BTC, btcPrice);
-                updateTrendIndicator(btcIndicatorEl, symbols.BTC, btcPrice);
-                
-                updatePriceDisplay(ethPriceEl, symbols.ETH, ethPrice);
-                updateTrendIndicator(ethIndicatorEl, symbols.ETH, ethPrice);
-
-                updatePriceDisplay(solPriceEl, symbols.SOL, solPrice);
-                updateTrendIndicator(solIndicatorEl, symbols.SOL, solPrice);
+                Object.keys(symbols).forEach((coin, index) => {
+                    const symbol = symbols[coin];
+                    const price = allPrices[index];
+                    const priceEl = document.getElementById(`${coin.toLowerCase()}-price`);
+                    const indicatorEl = document.getElementById(`${coin.toLowerCase()}-trend-indicator`);
+                    
+                    if (priceEl && indicatorEl) {
+                        updatePriceDisplay(priceEl, symbol, price);
+                        updateTrendIndicator(indicatorEl, symbol, price);
+                    }
+                });
                 
                 checkPriceAlerts();
 
@@ -349,14 +491,20 @@
          */
         function checkPriceAlerts() {
             for (const symbol in priceAlerts) {
-                if (priceAlerts[symbol] !== null) {
+                const alert = priceAlerts[symbol];
+                if (alert && alert.price !== null) {
                     const currentPrice = parseFloat(previousPrices[symbol]);
-                    const alertPrice = parseFloat(priceAlerts[symbol]);
+                    const alertPrice = parseFloat(alert.price);
+                    const initialPrice = parseFloat(alert.initialPrice);
 
-                    if (currentPrice >= alertPrice) {
+                    // 检查价格是否从任意方向越过了提醒价格
+                    const crossedUp = currentPrice >= alertPrice && initialPrice < alertPrice;
+                    const crossedDown = currentPrice <= alertPrice && initialPrice > alertPrice;
+
+                    if (crossedUp || crossedDown) {
                         triggerAudioAlert();
-                        showAlertModal("价格提醒", `${symbol} 已达到或超过你的提醒价格 $${alertPrice}！`);
-                        priceAlerts[symbol] = null;
+                        showAlertModal("价格提醒", `${symbolMap[symbol]} 已达到你的提醒价格 $${alertPrice}！`);
+                        priceAlerts[symbol] = null; // 提醒后清除
                     }
                 }
             }
@@ -397,131 +545,198 @@
         }
 
         /**
-         * 调用 Gemini API 生成交易分析报告，传入实时 K 线数据
-         * @param {string} coinSymbol - 货币符号
+         * 更新五角星显示
+         * @param {string} symbol - 货币符号
+         * @param {number} starCount - 五角星数量
          */
-        async function generateAnalysis(coinSymbol) {
-            analysisReport.classList.remove('hidden');
-            reportTitle.textContent = `✨ ${coinSymbol} 交易分析报告`;
-            reportContent.innerHTML = `
-                <div class="flex flex-col items-center justify-center space-y-4">
-                    <div class="loading-spinner"></div>
-                    <p class="text-xl text-gray-400">正在获取 ${coinSymbol} 最新数据并调用AI生成报告，请稍候...</p>
-                </div>
-            `;
-            
-            try {
-                const klines = await fetchKlines(symbols[coinSymbol], '5m');
-                if (!klines || klines.length === 0) {
-                    throw new Error('获取 K 线数据失败');
-                }
-
-                const formattedKlines = klines.map(kline => ({
-                    open: parseFloat(kline[1]),
-                    high: parseFloat(kline[2]),
-                    low: parseFloat(kline[3]),
-                    close: parseFloat(kline[4]),
-                    volume: parseFloat(kline[5]),
-                    timestamp: new Date(kline[0]).toLocaleString()
-                }));
-
-                const prompt = `
-                    根据以下最新的实时K线数据，为加密货币 ${coinSymbol} 生成一份简洁的交易分析报告。报告应提供两种可能的交易策略：看多（Bullish）和看空（Bearish）。
-                    对于每种策略，请提供具体的入场价格（Entry Price）、止盈价格（Take-Profit）和止损价格（Stop-Loss），以及简要的理由说明。
-                    K线数据（5分钟周期，最近100条）：
-                    ${JSON.stringify(formattedKlines, null, 2)}
-                    请直接以JSON格式返回结果，JSON结构如下：
-                    {
-                        "bullish": {
-                            "entryPrice": "具体的数值",
-                            "takeProfit": "具体的数值",
-                            "stopLoss": "具体的数值",
-                            "rationale": "简短的看多理由"
-                        },
-                        "bearish": {
-                            "entryPrice": "具体的数值",
-                            "takeProfit": "具体的数值",
-                            "stopLoss": "具体的数值",
-                            "rationale": "简短的看空理由"
-                        }
-                    }
-                `;
-
-                let chatHistory = [];
-                chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-                const payload = { 
-                    contents: chatHistory,
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            "type": "OBJECT",
-                            "properties": {
-                                "bullish": {
-                                    "type": "OBJECT",
-                                    "properties": {
-                                        "entryPrice": { "type": "STRING" },
-                                        "takeProfit": { "type": "STRING" },
-                                        "stopLoss": { "type": "STRING" },
-                                        "rationale": { "type": "STRING" }
-                                    }
-                                },
-                                "bearish": {
-                                    "type": "OBJECT",
-                                    "properties": {
-                                        "entryPrice": { "type": "STRING" },
-                                        "takeProfit": { "type": "STRING" },
-                                        "stopLoss": { "type": "STRING" },
-                                        "rationale": { "type": "STRING" }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-                const response = await fetchWithRetry(() => fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }));
-                
-                const result = await response.json();
-                
-                if (result.candidates && result.candidates.length > 0 &&
-                    result.candidates[0].content && result.candidates[0].content.parts &&
-                    result.candidates[0].content.parts.length > 0) {
-                    
-                    const json = result.candidates[0].content.parts[0].text;
-                    const parsedJson = JSON.parse(json);
-
-                    let htmlContent = `
-                        <h3 class="text-xl font-semibold text-green-400 mb-2">看多 (Bullish) 建议</h3>
-                        <ul class="list-disc list-inside space-y-1 mb-4">
-                            <li><strong>入场价格:</strong> ${parsedJson.bullish.entryPrice}</li>
-                            <li><strong>止盈价格:</strong> ${parsedJson.bullish.takeProfit}</li>
-                            <li><strong>止损价格:</strong> ${parsedJson.bullish.stopLoss}</li>
-                        </ul>
-                        <p class="text-gray-400 mb-6"><strong>理由:</strong> ${parsedJson.bullish.rationale}</p>
-                        
-                        <h3 class="text-xl font-semibold text-red-400 mb-2">看空 (Bearish) 建议</h3>
-                        <ul class="list-disc list-inside space-y-1 mb-4">
-                            <li><strong>入场价格:</strong> ${parsedJson.bearish.entryPrice}</li>
-                            <li><strong>止盈价格:</strong> ${parsedJson.bearish.takeProfit}</li>
-                            <li><strong>止损价格:</strong> ${parsedJson.bearish.stopLoss}</li>
-                        </ul>
-                        <p class="text-gray-400 mb-6"><strong>理由:</strong> ${parsedJson.bearish.rationale}</p>
-                    `;
-                    reportContent.innerHTML = htmlContent;
-                    
-                } else {
-                    reportContent.innerHTML = `<p class="text-red-500">无法生成报告，API返回了意外的响应。</p>`;
-                }
-
-            } catch (error) {
-                console.error('API 调用失败:', error);
-                reportContent.innerHTML = `<p class="text-red-500">生成报告失败，请稍后再试。</p>`;
+        function renderStars(symbol, starCount) {
+            const starsElement = document.getElementById(symbol.toLowerCase() + '-stars');
+            if (starsElement) {
+                starsElement.innerHTML = '&#9733;'.repeat(starCount);
             }
+        }
+
+        /**
+         * 更新趋势五角星
+         */
+        async function updateTrendStars() {
+            try {
+                const klinesPromises = Object.values(symbols).map(symbol => fetchKlines(symbol));
+                const allKlines = await Promise.all(klinesPromises);
+
+                Object.keys(symbols).forEach((coin, index) => {
+                    const symbol = symbols[coin];
+                    const klines = allKlines[index];
+
+                    if (!klines || klines.length < 2) return;
+
+                    const prevClosePrice = parseFloat(klines[0][4]);
+                    const currentClosePrice = parseFloat(klines[1][4]);
+
+                    if (lastFiveMinClose[symbol] === null) {
+                        lastFiveMinClose[symbol] = prevClosePrice;
+                        return;
+                    }
+                    
+                    if (currentClosePrice > lastFiveMinClose[symbol]) {
+                        trendStars[symbol] = Math.min(5, trendStars[symbol] + 1);
+                    } else if (currentClosePrice <= lastFiveMinClose[symbol]) {
+                        trendStars[symbol] = 0;
+                    }
+
+                    lastFiveMinClose[symbol] = currentClosePrice;
+                    renderStars(coin, trendStars[symbol]);
+                });
+            } catch (error) {
+                console.error("更新五角星失败:", error);
+            }
+        }
+        
+        /**
+         * 更新倒计时和周期计数
+         */
+        function updateTimer() {
+            if (countdownMinutes === 0 && countdownSeconds === 0) {
+                countdownMinutes = 5;
+                countdownSeconds = 0;
+                
+                cycleCount++;
+                if (cycleCount > maxCycles) {
+                    cycleCount = 1;
+                }
+                
+                updateTrendStars();
+            }
+            
+            if (countdownSeconds === 0) {
+                countdownMinutes--;
+                countdownSeconds = 59;
+            } else {
+                countdownSeconds--;
+            }
+            
+            const formattedMinutes = String(countdownMinutes).padStart(2, '0');
+            const formattedSeconds = String(countdownSeconds).padStart(2, '0');
+            cycleCountdownEl.textContent = `${formattedMinutes}:${formattedSeconds}`;
+            cycleCounterEl.textContent = `(第 ${cycleCount} 周期 / ${maxCycles})`;
+        }
+
+        /**
+         * 绘制价格曲线图
+         * @param {string} symbol - 货币符号
+         * @param {string} containerId - 图表容器的 ID
+         */
+        async function fetchAndDrawHourlyChart(symbol, containerId) {
+            try {
+                const klines = await fetchHourlyData(symbols[symbol]);
+                if (!klines || klines.length === 0) {
+                    console.error(`没有获取到 ${symbol} 的小时数据.`);
+                    document.getElementById(containerId).innerHTML = `<p class="text-red-500 text-center">无法加载图表数据。</p>`;
+                    return;
+                }
+
+                const data = klines.map(d => ({
+                    time: new Date(d[0]),
+                    price: parseFloat(d[4])
+                }));
+
+                const container = d3.select(`#${containerId}`);
+                container.select("svg").remove();
+
+                const margin = { top: 10, right: 30, bottom: 30, left: 60 };
+                const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
+                const height = 200 - margin.top - margin.bottom;
+
+                const svg = container.append("svg")
+                    .attr("width", width + margin.left + margin.right)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+                const x = d3.scaleTime()
+                    .domain(d3.extent(data, d => d.time))
+                    .range([0, width]);
+                
+                const xAxis = d3.axisBottom(x)
+                    .ticks(d3.timeMinute.every(10))
+                    .tickFormat(d3.timeFormat("%H:%M", 'Asia/Shanghai'));
+
+                svg.append("g")
+                    .attr("transform", `translate(0,${height})`)
+                    .call(xAxis)
+                    .call(g => g.select(".domain").remove())
+                    .selectAll("text")
+                    .style("fill", "#c9d1d9");
+
+                const y = d3.scaleLinear()
+                    .domain([d3.min(data, d => d.price) * 0.99, d3.max(data, d => d.price) * 1.01])
+                    .range([height, 0]);
+
+                svg.append("g")
+                    .call(d3.axisLeft(y).tickFormat(d3.format(".2f")).ticks(5))
+                    .call(g => g.select(".domain").remove())
+                    .selectAll("text")
+                    .style("fill", "#c9d1d9");
+
+                svg.append("path")
+                    .datum(data)
+                    .attr("fill", "none")
+                    .attr("stroke", "#60a5fa")
+                    .attr("stroke-width", 2)
+                    .attr("d", d3.line()
+                        .x(d => x(d.time))
+                        .y(d => y(d.price))
+                    );
+
+                // 添加 tooltip
+                const tooltip = d3.select("body").append("div")
+                    .attr("class", "chart-tooltip hidden");
+
+                const focus = svg.append("g")
+                    .attr("class", "focus hidden");
+
+                focus.append("circle")
+                    .attr("r", 5)
+                    .attr("fill", "#fff")
+                    .attr("stroke", "#60a5fa")
+                    .attr("stroke-width", 2);
+
+                svg.append("rect")
+                    .attr("class", "overlay")
+                    .attr("width", width)
+                    .attr("height", height)
+                    .style("fill", "none")
+                    .style("pointer-events", "all")
+                    .on("mouseover", function() { focus.classed("hidden", false); tooltip.classed("hidden", false); })
+                    .on("mouseout", function() { focus.classed("hidden", true); tooltip.classed("hidden", true); })
+                    .on("mousemove", mousemove);
+
+                function mousemove(event) {
+                    const bisectDate = d3.bisector(d => d.time).left;
+                    const x0 = x.invert(d3.pointer(event)[0]);
+                    const i = bisectDate(data, x0, 1);
+                    const d0 = data[i - 1];
+                    const d1 = data[i];
+                    const d = x0 - d0.time > d1.time - x0 ? d1 : d0;
+                    focus.attr("transform", `translate(${x(d.time)},${y(d.price)})`);
+                    tooltip.style("left", `${event.pageX + 10}px`)
+                           .style("top", `${event.pageY - 28}px`)
+                           .html(`<strong>${d3.timeFormat("%H:%M", 'Asia/Shanghai')(d.time)}</strong><br>$${d.price.toFixed(2)}`);
+                }
+            } catch (error) {
+                console.error(`绘制 ${symbol} 图表失败:`, error);
+                document.getElementById(containerId).innerHTML = `<p class="text-red-500 text-center">加载图表时出错。</p>`;
+            }
+        }
+        
+        /**
+         * 更新提醒对话框中的币种当前价格信息
+         */
+        function updateAlertMessage() {
+            const binanceSymbol = alertSymbolSelect.value;
+            const coinSymbol = symbolMap[binanceSymbol];
+            const currentPrice = previousPrices[binanceSymbol];
+            alertInputMessage.textContent = `当前 ${coinSymbol} 价格为 $${currentPrice || '-'}，请输入你的提醒价格：`;
         }
 
         /**
@@ -529,29 +744,28 @@
          */
         function startApp() {
             try {
-                // 为 AI 按钮添加事件监听器
-                btcAnalyzeBtn.addEventListener('click', () => generateAnalysis('BTC'));
-                ethAnalyzeBtn.addEventListener('click', () => generateAnalysis('ETH'));
-                solAnalyzeBtn.addEventListener('click', () => generateAnalysis('SOL'));
-                
-                // 为每个提醒按钮添加事件监听器
-                alertButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        const card = button.closest('.price-card');
-                        const coinSymbol = card.dataset.symbol;
-                        const binanceSymbol = symbols[coinSymbol];
-                        
-                        currentAlertSymbol = coinSymbol;
-                        const currentPrice = previousPrices[binanceSymbol];
+                zoomInBtn.addEventListener('click', () => {
+                    if (currentScale < maxScale) {
+                        currentScale += scaleStep;
+                        mainContainer.style.transform = `scale(${currentScale})`;
+                    }
+                });
 
-                        alertInputTitle.textContent = `${coinSymbol} 价格提醒`;
-                        alertInputMessage.textContent = `当前价格为 $${currentPrice}，请输入你的提醒价格：`;
-                        alertPriceInput.value = '';
-                        alertInputModal.classList.remove('hidden');
-                        alertPriceInput.focus();
-                    });
+                zoomOutBtn.addEventListener('click', () => {
+                    if (currentScale > minScale) {
+                        currentScale -= scaleStep;
+                        mainContainer.style.transform = `scale(${currentScale})`;
+                    }
                 });
                 
+                setAlertMainBtn.addEventListener('click', () => {
+                    updateAlertMessage();
+                    alertInputModal.classList.remove('hidden');
+                    alertPriceInput.focus();
+                });
+                
+                alertSymbolSelect.addEventListener('change', updateAlertMessage);
+
                 cancelAlertBtn.addEventListener('click', () => {
                     alertInputModal.classList.add('hidden');
                     alertPriceInput.value = '';
@@ -559,9 +773,16 @@
 
                 setAlertBtn.addEventListener('click', () => {
                     const alertPrice = parseFloat(alertPriceInput.value);
+                    const binanceSymbol = alertSymbolSelect.value;
+                    const coinSymbol = symbolMap[binanceSymbol];
+                    const currentPrice = previousPrices[binanceSymbol];
+
                     if (alertPrice && !isNaN(alertPrice)) {
-                        priceAlerts[symbols[currentAlertSymbol]] = alertPrice;
-                        showAlertModal("提醒设置成功", `当 ${currentAlertSymbol} 价格达到 $${alertPrice} 时，你将会收到提醒。`);
+                        priceAlerts[binanceSymbol] = { 
+                            price: alertPrice, 
+                            initialPrice: currentPrice 
+                        };
+                        showAlertModal("提醒设置成功", `当 ${coinSymbol} 价格达到 $${alertPrice} 时，你将会收到提醒。`);
                     } else {
                          showAlertModal("输入无效", "请输入一个有效的数字价格。");
                     }
@@ -573,9 +794,23 @@
                     notificationModal.classList.add('hidden');
                 });
         
-                // 初始加载和定期更新
                 updatePrices();
+                updateTrendStars();
+                
+                // 动态绘制所有币种的图表
+                Object.keys(symbols).forEach(coin => {
+                    fetchAndDrawHourlyChart(coin, `${coin.toLowerCase()}-chart-container`);
+                });
+
+                // 定时更新
                 setInterval(updatePrices, 15000);
+                setInterval(updateTimer, 1000);
+                setInterval(() => {
+                    Object.keys(symbols).forEach(coin => {
+                        fetchAndDrawHourlyChart(coin, `${coin.toLowerCase()}-chart-container`);
+                    });
+                }, 60000);
+
             } catch (error) {
                 console.error("应用程序初始化失败:", error);
                 showAlertModal("应用程序错误", `应用程序初始化失败。错误信息: ${error.message}`);
