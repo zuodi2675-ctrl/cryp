@@ -1,823 +1,516 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>加密货币实时价格与分析</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- D3.js for charting -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>LUMINA v80.0 STABLE ENHANCED</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#141414">
+    <meta name="apple-mobile-web-app-title" content="LUMINA">
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23141414%22/><circle cx=%2250%22 cy=%2250%22 r=%2235%22 stroke=%22%2300e5ff%22 stroke-width=%228%22 fill=%22none%22/><text x=%2250%22 y=%2262%22 font-family=%22sans-serif%22 font-size=%2240%22 font-weight=%22900%22 fill=%22%23eee%22 text-anchor=%22middle%22>L</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23141414%22/><circle cx=%2250%22 cy=%2250%22 r=%2235%22 stroke=%22%2300e5ff%22 stroke-width=%228%22 fill=%22none%22/><text x=%2250%22 y=%2262%22 font-family=%22sans-serif%22 font-size=%2240%22 font-weight=%22900%22 fill=%22%23eee%22 text-anchor=%22middle%22>L</text></svg>">
+
+    <script>
+        const manifest = {
+            "name": "LUMINA v80",
+            "short_name": "LUMINA",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#0a0a0a",
+            "theme_color": "#141414",
+            "icons": [{
+                "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23141414%22/><circle cx=%2250%22 cy=%2250%22 r=%2235%22 stroke=%22%2300e5ff%22 stroke-width=%228%22 fill=%22none%22/><text x=%2250%22 y=%2262%22 font-family=%22sans-serif%22 font-size=%2240%22 font-weight=%22900%22 fill=%22%23eee%22 text-anchor=%22middle%22>L</text></svg>",
+                "sizes": "192x192 512x512",
+                "type": "image/svg+xml"
+            }]
+        };
+        const stringManifest = JSON.stringify(manifest);
+        const blob = new Blob([stringManifest], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestURL;
+        document.head.appendChild(link);
+    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0d1117;
-            color: #c9d1d9;
+        /* --- 基础 --- */
+        :root { --bg: #0a0a0a; --panel: #141414; --accent: #00e5ff; --text: #eee; --border: #333; }
+        * { box-sizing: border-box; user-select: none; outline: none; font-family: "Segoe UI", sans-serif; font-size:12px; -webkit-tap-highlight-color: transparent; }
+        
+        /* 针对 PWA 的全屏优化 */
+        body { margin: 0; background: var(--bg); color: var(--text); height: 100vh; width: 100vw; overflow: hidden; display: grid; grid-template-columns: 260px 1fr 360px; grid-template-rows: 50px 1fr; overscroll-behavior: none; }
+        
+        /* Header */
+        .header { grid-column: 1/-1; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 200; -webkit-app-region: drag; /* 允许在桌面端拖动窗口 */ }
+        .brand { font-weight: 900; font-style: italic; font-size: 20px; letter-spacing: 1px; } .brand span { color: var(--accent); }
+        .toolbar { display: flex; gap: 10px; align-items: center; -webkit-app-region: no-drag; }
+        
+        /* 物理覆盖式按钮 (v1.1 核心) */
+        .upload-wrapper { position: relative; width: 100px; height: 30px; background: var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; }
+        .upload-text { font-weight: bold; color: #000; pointer-events: none; }
+        #fileInput { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; }
+        
+        .btn { background: #333; border: 1px solid #444; color: #ccc; padding: 0 15px; height: 30px; border-radius: 4px; cursor: pointer; font-weight: bold; display:flex; align-items:center; }
+        .btn:hover { background: #444; color: #fff; }
+        .divider { width: 1px; height: 20px; background: #444; }
+
+        /* Viewport */
+        .viewport { position: relative; background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        
+        /* Stage: 尺寸由 JS 动态计算为图片原始尺寸 */
+        #stage { 
+            position: relative; box-shadow: 0 0 50px #000; 
+            transform-origin: center center; flex-shrink: 0; 
+            display: none; 
         }
-        .main-container {
-            max-width: 900px;
-            transform-origin: center center;
-            transition: transform 0.2s ease-in-out;
+        canvas { display: block; transition: transform 0.1s linear; }
+
+        /* Crop System */
+        .crop-layer { position: absolute; inset: 0; z-index: 50; display: none; pointer-events: none; }
+        .crop-rotator { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; transform-origin: center; }
+        .crop-box { 
+            position: absolute; border: 1px solid #fff; 
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.8); 
+            pointer-events: auto; cursor: move;
         }
-        .price-card {
-            min-width: 200px;
+        .crop-grid { position: absolute; inset: 0; opacity: 0.3; pointer-events: none; background: linear-gradient(to right, transparent 33%, #fff 33%, #fff 33.5%, transparent 33.5%, transparent 66%, #fff 66%, #fff 66.5%, transparent 66.5%), linear-gradient(to bottom, transparent 33%, #fff 33%, #fff 33.5%, transparent 33.5%, transparent 66%, #fff 66%, #fff 66.5%, transparent 66.5%); }
+        
+        .handle { width: 16px; height: 16px; background: var(--accent); border: 2px solid #fff; position: absolute; z-index: 60; pointer-events: auto; }
+        .h-tl { top:-8px; left:-8px; cursor: nw-resize; border-right:0; border-bottom:0; } 
+        .h-tr { top:-8px; right:-8px; cursor: ne-resize; border-left:0; border-bottom:0; }
+        .h-bl { bottom:-8px; left:-8px; cursor: sw-resize; border-right:0; border-top:0; } 
+        .h-br { bottom:-8px; right:-8px; cursor: se-resize; border-left:0; border-top:0; }
+        
+        .rot-handle {
+            position: absolute; bottom: -50px; left: 50%; transform: translateX(-50%);
+            width: 32px; height: 32px; background: #000; border: 2px solid var(--accent);
+            border-radius: 50%; cursor: grab; display: flex; justify-content: center; align-items: center;
+            color: var(--accent); font-size: 18px; pointer-events: auto; z-index: 60;
         }
-        .loading-spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid #3498db;
-            width: 30px;
-            height: 30px;
-            -webkit-animation: spin 1s linear infinite; /* Safari */
-            animation: spin 1s linear infinite;
+        .rot-line { position: absolute; bottom: -50px; left: 50%; width: 1px; height: 50px; background: #fff; pointer-events: none; }
+        .rot-tip { position: absolute; left: 50px; top: 10px; background: rgba(0,0,0,0.8); color: #fff; padding: 2px 6px; border-radius: 3px; display:none; font-family:monospace;}
+
+        /* Focus */
+        .focus-pt { 
+            position: absolute; width: 40px; height: 40px; 
+            border: 2px solid #fff; border-radius: 50%; 
+            box-shadow: 0 0 15px var(--accent), inset 0 0 10px var(--accent);
+            transform: translate(-50%,-50%); cursor: crosshair; pointer-events: auto; z-index: 70;
+            display: none; 
         }
-        /* Safari */
-        @-webkit-keyframes spin {
-            0% { -webkit-transform: rotate(0deg); }
-            100% { -webkit-transform: rotate(360deg); }
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .modal {
-            transition: opacity 0.3s ease-in-out;
-        }
-        .chart-container {
-            width: 100%;
-            height: 200px;
-        }
-        .chart-tooltip {
-            position: absolute;
-            text-align: center;
-            width: auto;
-            height: auto;
-            padding: 8px;
-            font-size: 12px;
-            background: #2d3748; /* bg-gray-800 */
-            border: 0px;
-            border-radius: 8px;
-            pointer-events: none;
-            color: #fff;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        .focus-pt::after { content:'+'; color:#fff; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:24px; }
+        .focus-ring { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); border: 2px dashed rgba(0, 229, 255, 0.6); border-radius: 50%; width: 100%; height: 100%; pointer-events: none; }
+
+        /* Panels */
+        .panel { background: var(--panel); overflow-y: auto; display: flex; flex-direction: column; }
+        .left { border-right: 1px solid var(--border); } .right { border-left: 1px solid var(--border); z-index: 150; }
+        .grp-t { padding: 15px; font-size: 12px; font-weight: 900; color: var(--accent); text-transform: uppercase; background: #1a1a1a; border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 10; }
+        .preset { padding: 10px 12px; cursor: pointer; color: #bbb; font-size: 12px; display: flex; justify-content: space-between; border-radius: 4px; margin-bottom: 2px; transition:0.1s; }
+        .preset:hover { background: #222; color: #fff; }
+        .preset.active { background: rgba(0, 229, 255, 0.15); color: var(--accent); border-left: 3px solid var(--accent); font-weight:bold; }
+        .tag { font-size: 10px; opacity: 0.5; background: #000; padding: 2px 5px; border-radius: 3px; }
+
+        /* Controls */
+        .tabs { display: flex; background: #181818; border-bottom: 1px solid var(--border); flex-shrink:0; }
+        .tab { flex: 1; padding: 15px 0; text-align: center; font-size: 12px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; font-weight: bold; transition:0.2s;}
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: #202020; }
+        .p-con { flex: 1; overflow-y: auto; padding: 20px; display: none; } .p-con.active { display: block; }
+
+        .row { margin-bottom: 20px; }
+        .row-h { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; color: #ccc; }
+        .val { color: var(--accent); font-family: monospace; }
+        input[type=range] { width: 100%; cursor: pointer; accent-color: var(--accent); height: 4px; background: #333; border-radius: 2px; }
+        input[type=range]:hover { background: #444; }
+
+        /* Wheels (v1.1 Vertical Gears) */
+        .wheel-unit { background: var(--bg-widget); padding: 10px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #252525; }
+        .wheel-header { display: flex; justify-content: space-between; font-size: 11px; font-weight: bold; color: #ccc; margin-bottom: 8px; text-transform: uppercase; }
+        .wheel-body { display: flex; align-items: center; gap: 10px; }
+        .wheel-canvas { width: 80px; height: 80px; border-radius: 50%; background: #000; position: relative; flex-shrink: 0; border: 2px solid #444; cursor: crosshair; }
+        .grad { position: absolute; inset: 2px; border-radius: 50%; background: conic-gradient(red, magenta, blue, cyan, lime, yellow, red); opacity: 0.6; pointer-events: none; }
+        .puck { width: 8px; height: 8px; background: #fff; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; border:1px solid #000; }
+        .gears { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; height: 80px; }
+        .g-col { display: flex; flex-direction: column; align-items: center; height: 100%; }
+        .g-trk { flex:1; width: 100%; background: #111; border: 1px solid #333; position: relative; cursor: ns-resize; border-radius: 2px; overflow: hidden; background-image: repeating-linear-gradient(0deg, transparent, transparent 4px, #222 4px, #222 5px); }
+        .g-mid { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #555; pointer-events: none; }
+        .g-fill { position: absolute; left: 0; right: 0; top: 50%; height: 0%; background: currentColor; opacity: 0.6; pointer-events: none; transition: 0.05s; }
+        .g-val { font-size: 9px; font-family: monospace; color: var(--accent); margin-top: 4px; }
+        .c-r { color: #ff4444; } .c-g { color: #44ff44; } .c-b { color: #4444ff; } .c-y { color: #fff; }
+
+        .mod-h { display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #333; margin-bottom: 15px; }
+        .switch { position: relative; display: inline-block; width: 30px; height: 16px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 16px; }
+        .slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); } input:checked + .slider:before { transform: translateX(14px); }
+        .mod-c { opacity: 0.5; pointer-events: none; transition: 0.3s; } .mod-c.enabled { opacity: 1; pointer-events: auto; }
+
+        #loading { position: absolute; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; justify-content: center; align-items: center; color: var(--accent); font-size: 18px; font-weight: bold; }
+        #empty { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #444; font-weight: bold; cursor: pointer; z-index:10; }
+        .zoom-val { position: absolute; bottom: 20px; left: 20px; color: #666; font-family: monospace; }
+        
+        /* 移动端适配 */
+        @media (max-width: 800px) {
+            body { grid-template-columns: 1fr; grid-template-rows: 50px 1fr 250px; }
+            .left-panel { display: none; } /* 移动端简化：隐藏预设栏 */
+            .right-panel { grid-row: 3; border-left: 0; border-top: 1px solid var(--border); }
+            .header { padding: 0 10px; }
+            .brand { font-size: 16px; }
+            .btn { padding: 0 8px; font-size: 10px; }
         }
     </style>
 </head>
-<body class="p-4">
+<body>
 
-    <!-- 主容器 -->
-    <div class="main-container mx-auto p-6 bg-gray-800 rounded-2xl shadow-xl">
+<div id="loading">LOADING...</div>
+
+<header class="header">
+    <div class="brand">LUMINA <span>v80.0</span></div>
+    <div class="toolbar">
+        <div class="upload-wrapper">
+            <span class="upload-text">📂 打开</span>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <div class="divider"></div>
+        <button class="btn" onclick="resetAll()">↺</button>
+        <button class="btn" onclick="toggleCrop(true)">📐</button>
+        <button class="btn" onclick="exportImg()">💾</button>
+    </div>
+</header>
+
+<aside class="left-panel panel">
+    <div class="grp-t">智能场景 AI</div>
+    <div class="preset-list">
+        <div class="preset active" onclick="setPre('none')" id="p-none"><span>原始 RAW</span></div>
+        <div class="preset" onclick="setPre('portrait')" id="p-portrait"><span>人像 Soft</span><span class="tag">AI</span></div>
+        <div class="preset" onclick="setPre('land')" id="p-land"><span>风景 Vivid</span><span class="tag">AI</span></div>
+        <div class="preset" onclick="setPre('arch')" id="p-arch"><span>建筑 HDR</span><span class="tag">AI</span></div>
+        <div class="preset" onclick="setPre('food')" id="p-food"><span>美食 Warm</span><span class="tag">AI</span></div>
+        <div class="preset" onclick="setPre('plant')" id="p-plant"><span>植物 Fresh</span><span class="tag">AI</span></div>
+        <div class="preset" onclick="setPre('animal')" id="p-animal"><span>动物 Sharp</span><span class="tag">AI</span></div>
+        <div class="preset" onclick="setPre('movie')" id="p-movie"><span>电影 Teal</span><span class="tag">AI</span></div>
+    </div>
+    <div class="grp-t" style="margin-top:10px;">经典胶片 FILM</div>
+    <div class="preset-list">
+        <div class="preset" onclick="setPre('fuji')" id="p-fuji"><span>Fujifilm NC</span><span class="tag">FILM</span></div>
+        <div class="preset" onclick="setPre('kodak')" id="p-kodak"><span>Kodak Gold</span><span class="tag">FILM</span></div>
+        <div class="preset" onclick="setPre('leica')" id="p-leica"><span>Leica BW</span><span class="tag">FILM</span></div>
+        <div class="preset" onclick="setPre('panasonic')" id="p-panasonic"><span>Panasonic</span><span class="tag">LOG</span></div>
+        <div class="preset" onclick="setPre('sony')" id="p-sony"><span>Sony Alpha</span><span class="tag">STD</span></div>
+        <div class="preset" onclick="setPre('canon')" id="p-canon"><span>Canon EOS</span><span class="tag">POR</span></div>
+        <div class="preset" onclick="setPre('nikon')" id="p-nikon"><span>Nikon Z</span><span class="tag">NEU</span></div>
+        <div class="preset" onclick="setPre('pentax')" id="p-pentax"><span>Pentax K</span><span class="tag">SAT</span></div>
+        <div class="preset" onclick="setPre('ricoh')" id="p-ricoh"><span>Ricoh GR</span><span class="tag">HI-C</span></div>
+        <div class="preset" onclick="setPre('polaroid')" id="p-polaroid"><span>Polaroid</span><span class="tag">INS</span></div>
+    </div>
+</aside>
+
+<main class="viewport" id="vp">
+    <div id="empty" onclick="document.getElementById('fileInput').click()">
+        <div style="font-size:50px;">＋</div><div>点击打开图片</div>
+    </div>
+    
+    <div id="stage">
+        <canvas id="gl"></canvas>
         
-        <!-- 5分钟倒计时、周期计数器和新的提醒按钮排列在同一行 -->
-        <div class="flex items-center justify-between bg-gray-900 rounded-xl p-4 mb-8 shadow-inner">
-            <h2 class="text-lg font-semibold text-gray-300">5分钟趋势分析周期</h2>
-            <p id="timer-display" class="text-4xl font-bold text-yellow-400 mt-2">
-                <span id="cycle-countdown">05:00</span>
-                <span class="text-lg text-gray-400 font-normal ml-4" id="cycle-counter"> (第 1 周期 / 12)</span>
-            </p>
-            <!-- 统一的提醒设置按钮 -->
-            <button id="set-alert-main-btn" class="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-semibold py-2 px-6 mt-0 rounded-full text-sm transition-colors duration-300">设置价格提醒</button>
-        </div>
-
-        <!-- 缩放控制按钮 -->
-        <div class="flex items-center justify-center mb-6 space-x-4">
-            <button id="zoom-out" class="w-10 h-10 bg-gray-700 text-white rounded-full font-bold text-2xl hover:bg-gray-600 transition-colors">-</button>
-            <span class="text-lg text-gray-400">缩放</span>
-            <button id="zoom-in" class="w-10 h-10 bg-gray-700 text-white rounded-full font-bold text-2xl hover:bg-gray-600 transition-colors">+</button>
-        </div>
-
-        <!-- 实时价格展示区 -->
-        <div id="price-display" class="flex flex-col gap-6 mb-8">
-            <!-- BTC 价格卡片 -->
-            <div id="btc-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="BTC">
-                <h2 class="text-xl font-semibold mb-2 text-blue-400">BTC/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="btc-price">-</span>
-                        <span id="btc-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="btc-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                    <div class="flex flex-col space-y-2">
-                         <!-- "AI 交易分析" 按钮已移除 -->
-                    </div>
-                </div>
-                 <!-- 价格曲线图容器 -->
-                <div id="btc-chart-container" class="chart-container mt-4"></div>
-            </div>
-            <!-- ETH 价格卡片 -->
-            <div id="eth-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="ETH">
-                <h2 class="text-xl font-semibold mb-2 text-purple-400">ETH/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="eth-price">-</span>
-                        <span id="eth-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="eth-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                    <div class="flex flex-col space-y-2">
-                        <!-- "AI 交易分析" 按钮已移除 -->
-                    </div>
-                </div>
-                <!-- 价格曲线图容器 -->
-                <div id="eth-chart-container" class="chart-container mt-4"></div>
-            </div>
-            <!-- SOL 价格卡片 -->
-            <div id="sol-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="SOL">
-                <h2 class="text-xl font-semibold mb-2 text-emerald-400">SOL/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="sol-price">-</span>
-                        <span id="sol-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="sol-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                    <div class="flex flex-col space-y-2">
-                        <!-- "AI 交易分析" 按钮已移除 -->
-                    </div>
-                </div>
-                <!-- 价格曲线图容器 -->
-                <div id="sol-chart-container" class="chart-container mt-4"></div>
-            </div>
-
-            <!-- 新增币种卡片 -->
-            <!-- PEOPLE 价格卡片 -->
-            <div id="people-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="PEOPLE">
-                <h2 class="text-xl font-semibold mb-2 text-amber-400">PEOPLE/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="people-price">-</span>
-                        <span id="people-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="people-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                </div>
-                <div id="people-chart-container" class="chart-container mt-4"></div>
-            </div>
-            <!-- PNUT 价格卡片 -->
-            <div id="pnut-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="PNUT">
-                <h2 class="text-xl font-semibold mb-2 text-pink-400">PNUT/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="pnut-price">-</span>
-                        <span id="pnut-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="pnut-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                </div>
-                <div id="pnut-chart-container" class="chart-container mt-4"></div>
-            </div>
-            <!-- SUI 价格卡片 -->
-            <div id="sui-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="SUI">
-                <h2 class="text-xl font-semibold mb-2 text-teal-400">SUI/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="sui-price">-</span>
-                        <span id="sui-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="sui-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                </div>
-                <div id="sui-chart-container" class="chart-container mt-4"></div>
-            </div>
-            <!-- WIF 价格卡片 -->
-            <div id="wif-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="WIF">
-                <h2 class="text-xl font-semibold mb-2 text-orange-400">WIF/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="wif-price">-</span>
-                        <span id="wif-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="wif-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                </div>
-                <div id="wif-chart-container" class="chart-container mt-4"></div>
-            </div>
-            <!-- AAVE 价格卡片 -->
-            <div id="aave-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="AAVE">
-                <h2 class="text-xl font-semibold mb-2 text-indigo-400">AAVE/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="aave-price">-</span>
-                        <span id="aave-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="aave-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                </div>
-                <div id="aave-chart-container" class="chart-container mt-4"></div>
-            </div>
-            <!-- CRV 价格卡片 -->
-            <div id="crv-card" class="price-card p-6 bg-gray-700 rounded-xl shadow-lg transition-transform transform hover:scale-105" data-symbol="CRV">
-                <h2 class="text-xl font-semibold mb-2 text-red-400">CRV/USDT</h2>
-                <div class="flex items-center justify-between">
-                    <p class="flex items-center text-4xl font-bold text-white">
-                        <span id="crv-price">-</span>
-                        <span id="crv-trend-indicator" class="ml-2 text-2xl font-bold"></span>
-                        <span id="crv-stars" class="ml-2 text-xl text-yellow-400"></span>
-                    </p>
-                </div>
-                <div id="crv-chart-container" class="chart-container mt-4"></div>
-            </div>
-        </div>
-
-        <!-- 价格提醒输入模态框 (新增) -->
-        <div id="alert-input-modal" class="hidden modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm">
-                <h2 id="alert-input-title" class="text-2xl font-bold text-white mb-4 text-center">设置价格提醒</h2>
-                <div class="flex flex-col gap-4">
-                    <!-- 新增币种选择下拉菜单 -->
-                    <select id="alert-symbol-select" class="bg-gray-700 text-white p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="BTCUSDT">BTC/USDT</option>
-                        <option value="ETHUSDT">ETH/USDT</option>
-                        <option value="SOLUSDT">SOL/USDT</option>
-                        <option value="PEOPLEUSDT">PEOPLE/USDT</option>
-                        <option value="PNUTUSDT">PNUT/USDT</option>
-                        <option value="SUIUSDT">SUI/USDT</option>
-                        <option value="WIFUSDT">WIF/USDT</option>
-                        <option value="AAVEUSDT">AAVE/USDT</option>
-                        <option value="CRVUSDT">CRV/USDT</option>
-                    </select>
-                    <p id="alert-input-message" class="text-lg text-gray-300 mb-2 text-center"></p>
-                    <input id="alert-price-input" type="number" step="0.01" class="bg-gray-700 text-white p-3 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入提醒价格">
-                    <div class="flex justify-between gap-4 mt-4">
-                        <button id="cancel-alert-btn" class="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-full transition-colors duration-300">取消</button>
-                        <button id="set-alert-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-colors duration-300">设置</button>
+        <div class="crop-layer" id="cropUI">
+            <div class="crop-rotator" id="cropRot">
+                <div class="crop-box" id="cBox">
+                    <div class="crop-grid"></div>
+                    <div class="handle h-tl" data-d="nw"></div><div class="handle h-tr" data-d="ne"></div>
+                    <div class="handle h-bl" data-d="sw"></div><div class="handle h-br" data-d="se"></div>
+                    <div class="rot-line"></div>
+                    <div class="rot-handle" id="rH">
+                        ⟳
+                        <div class="rot-tip" id="rTip">0.0°</div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <!-- 通知模态框 (用于提醒和错误信息) -->
-        <div id="notification-modal" class="hidden modal fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm text-center">
-                <h2 id="notification-title" class="text-2xl font-bold text-white mb-4"></h2>
-                <p id="notification-message" class="text-lg text-gray-300 mb-6"></p>
-                <button id="close-notification-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-colors duration-300">确定</button>
-            </div>
-        </div>
+        <div class="focus-pt" id="fPt"><div class="focus-ring" id="fRng"></div></div>
+    </div>
+    
+    <div class="zoom-val" id="zoomVal">100%</div>
+    
+    <div id="cBtns" style="position:absolute; bottom:20px; display:none; gap:10px; z-index:100;">
+        <button class="btn" style="background:var(--accent); color:#000;" onclick="applyCrop()">确认</button>
+        <button class="btn" onclick="toggleCrop(false)">取消</button>
+    </div>
+</main>
+
+<aside class="right-panel panel">
+    <div class="tabs">
+        <div class="tab active" onclick="setTab('adj')">基础</div>
+        <div class="tab" onclick="setTab('col')">色轮</div>
+        <div class="tab" onclick="setTab('por')">人像</div>
     </div>
 
-    <script>
-        // 定义全局变量，供 Canvas 环境注入
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
-        const apiKey = ""; // API 密钥，在 Canvas 环境中会自动填充
+    <div id="t-adj" class="p-con active">
+        <div class="row"><div class="row-h"><span>亮度</span><span class="val" id="v-brt">0</span></div><input type="range" id="s-brt" min="-0.5" max="0.5" step="0.01" value="0" oninput="upd('brt',this.value)"></div>
+        <div class="row"><div class="row-h"><span>曝光</span><span class="val" id="v-exp">0</span></div><input type="range" id="s-exp" min="-2" max="2" step="0.01" value="0" oninput="upd('exp',this.value)"></div>
+        <div class="row"><div class="row-h"><span>对比度</span><span class="val" id="v-con">1.0</span></div><input type="range" id="s-con" min="0" max="2" step="0.01" value="1" oninput="upd('con',this.value)"></div>
+        <div class="row"><div class="row-h"><span>饱和度</span><span class="val" id="v-sat">1.0</span></div><input type="range" id="s-sat" min="0" max="2" step="0.01" value="1" oninput="upd('sat',this.value)"></div>
+        <div class="row"><div class="row-h"><span>色相</span><span class="val" id="v-hue">0</span></div><input type="range" id="s-hue" min="-0.5" max="0.5" step="0.01" value="0" oninput="upd('hue',this.value)"></div>
+        
+        <div class="row"><div class="row-h"><span>阴影</span><span class="val" id="v-shadows">0</span></div><input type="range" id="s-shadows" min="-1" max="1" step="0.01" value="0" oninput="upd('shadows',this.value)"></div>
+        <div class="row"><div class="row-h"><span>高光</span><span class="val" id="v-highlights">0</span></div><input type="range" id="s-highlights" min="-1" max="1" step="0.01" value="0" oninput="upd('highlights',this.value)"></div>
+        <div class="row" style="border-top:1px solid #333; padding-top:15px;"><div class="row-h"><span>色彩增强</span><span class="val" id="v-boost">0</span></div><input type="range" id="s-boost" min="0" max="1" step="0.01" value="0" oninput="upd('boost',this.value)"></div>
+        <div class="row"><div class="row-h"><span>亮度混合</span><span class="val" id="v-lumaMix">1.0</span></div><input type="range" id="s-lumaMix" min="0" max="1" step="0.01" value="1" oninput="upd('lumaMix',this.value)"></div>
+    </div>
 
-        // 加密货币符号映射
-        const symbols = {
-            'BTC': 'BTCUSDT',
-            'ETH': 'ETHUSDT',
-            'SOL': 'SOLUSDT',
-            'PEOPLE': 'PEOPLEUSDT',
-            'PNUT': 'PNUTUSDT',
-            'SUI': 'SUIUSDT',
-            'WIF': 'WIFUSDT',
-            'AAVE': 'AAVEUSDT',
-            'CRV': 'CRVUSDT'
+    <div id="t-col" class="p-con">
+        <div class="wheel-unit"><div class="wheel-header"><span>暗部 Lift</span><span style="cursor:pointer" onclick="rstW('lift')">↺</span></div><div class="wheel-body"><div class="wheel-canvas" onmousedown="pk(event,'lift')"><div class="grad"></div><div class="puck" id="pk-lift"></div></div><div class="gears"><div class="g-col"><div class="g-trk" onmousedown="gr(event,'lift','r')"><div class="g-mid"></div><div class="g-fill c-r" id="g-lift-r"></div></div><div class="g-val" id="gv-lift-r">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'lift','g')"><div class="g-mid"></div><div class="g-fill c-g" id="g-lift-g"></div></div><div class="g-val" id="gv-lift-g">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'lift','b')"><div class="g-mid"></div><div class="g-fill c-b" id="g-lift-b"></div></div><div class="g-val" id="gv-lift-b">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'lift','y')"><div class="g-mid"></div><div class="g-fill c-y" id="g-lift-y"></div></div><div class="g-val" id="gv-lift-y">0.0</div></div></div></div></div>
+        <div class="wheel-unit"><div class="wheel-header"><span>中灰 Gamma</span><span style="cursor:pointer" onclick="rstW('gamma')">↺</span></div><div class="wheel-body"><div class="wheel-canvas" onmousedown="pk(event,'gamma')"><div class="grad"></div><div class="puck" id="pk-gamma"></div></div><div class="gears"><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gamma','r')"><div class="g-mid"></div><div class="g-fill c-r" id="g-gamma-r"></div></div><div class="g-val" id="gv-gamma-r">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gamma','g')"><div class="g-mid"></div><div class="g-fill c-g" id="g-gamma-g"></div></div><div class="g-val" id="gv-gamma-g">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gamma','b')"><div class="g-mid"></div><div class="g-fill c-b" id="g-gamma-b"></div></div><div class="g-val" id="gv-gamma-b">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gamma','y')"><div class="g-mid"></div><div class="g-fill c-y" id="g-gamma-y"></div></div><div class="g-val" id="gv-gamma-y">0.0</div></div></div></div></div>
+        <div class="wheel-unit"><div class="wheel-header"><span>亮部 Gain</span><span style="cursor:pointer" onclick="rstW('gain')">↺</span></div><div class="wheel-body"><div class="wheel-canvas" onmousedown="pk(event,'gain')"><div class="grad"></div><div class="puck" id="pk-gain"></div></div><div class="gears"><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gain','r')"><div class="g-mid"></div><div class="g-fill c-r" id="g-gain-r"></div></div><div class="g-val" id="gv-gain-r">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gain','g')"><div class="g-mid"></div><div class="g-fill c-g" id="g-gain-g"></div></div><div class="g-val" id="gv-gain-g">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gain','b')"><div class="g-mid"></div><div class="g-fill c-b" id="g-gain-b"></div></div><div class="g-val" id="gv-gain-b">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'gain','y')"><div class="g-mid"></div><div class="g-fill c-y" id="g-gain-y"></div></div><div class="g-val" id="gv-gain-y">0.0</div></div></div></div></div>
+        <div class="wheel-unit"><div class="wheel-header"><span>偏移 Offset</span><span style="cursor:pointer" onclick="rstW('offset')">↺</span></div><div class="wheel-body"><div class="wheel-canvas" onmousedown="pk(event,'offset')"><div class="grad"></div><div class="puck" id="pk-offset"></div></div><div class="gears"><div class="g-col"><div class="g-trk" onmousedown="gr(event,'offset','r')"><div class="g-mid"></div><div class="g-fill c-r" id="g-offset-r"></div></div><div class="g-val" id="gv-offset-r">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'offset','g')"><div class="g-mid"></div><div class="g-fill c-g" id="g-offset-g"></div></div><div class="g-val" id="gv-offset-g">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'offset','b')"><div class="g-mid"></div><div class="g-fill c-b" id="g-offset-b"></div></div><div class="g-val" id="gv-offset-b">0.0</div></div><div class="g-col"><div class="g-trk" onmousedown="gr(event,'offset','y')"><div class="g-mid"></div><div class="g-fill c-y" id="g-offset-y"></div></div><div class="g-val" id="gv-offset-y">0.0</div></div></div></div></div>
+    </div>
+
+    <div id="t-por" class="p-con">
+        <div class="mod-h">
+            <span style="color:var(--accent); font-weight:bold;">✨ 景深模拟</span>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button class="btn" style="height:20px; padding:0 10px;" onclick="applyFocus()">应用</button>
+                <label class="switch"><input type="checkbox" id="chk-dof" onchange="togDof()"> <span class="slider"></span></label>
+            </div>
+        </div>
+        <div id="mod-dof" class="mod-c">
+            <div style="font-size:10px; color:#666; margin-bottom:10px; text-align:center;">* 拖动画面靶心对焦</div>
+            <div class="row"><div class="row-h"><span>虚化强度</span><span class="val" id="v-dof">0</span></div><input type="range" id="s-dof" min="0" max="100" value="0" oninput="upd('dof',this.value)"></div>
+            <div class="row"><div class="row-h"><span>对焦范围</span><span class="val" id="v-fSz">0.2</span></div><input type="range" id="s-fSz" min="0.05" max="0.8" step="0.01" value="0.2" oninput="upd('fSz',this.value)"></div>
+        </div>
+        <div class="mod-h" style="margin-top:30px;"><span style="font-weight:bold;">👤 皮肤美化</span></div>
+        <div class="row"><div class="row-h"><span>智能降噪</span><span class="val" id="v-noise">0</span></div><input type="range" id="s-noise" min="0" max="1" step="0.01" value="0" oninput="upd('noise',this.value)"></div>
+        <div class="row"><div class="row-h"><span>磨皮</span><span class="val" id="v-sm">0</span></div><input type="range" id="s-sm" min="0" max="1" step="0.01" value="0" oninput="upd('sm',this.value)"></div>
+        <div class="row"><div class="row-h"><span>美白</span><span class="val" id="v-wh">0</span></div><input type="range" id="s-wh" min="0" max="1" step="0.01" value="0" oninput="upd('wh',this.value)"></div>
+        <div class="row"><div class="row-h"><span>红润</span><span class="val" id="v-ros">0</span></div><input type="range" id="s-ros" min="0" max="1" step="0.01" value="0" oninput="upd('ros',this.value)"></div>
+    </div>
+</aside>
+
+<script id="vs" type="x-shader/x-vertex">
+    attribute vec2 p; attribute vec2 u; varying vec2 v; void main(){gl_Position=vec4(p,0,1);v=u;}
+</script>
+<script id="fs" type="x-shader/x-fragment">
+    precision mediump float; uniform sampler2D t; uniform vec2 res; varying vec2 v;
+    uniform float brt,exp,con,sat,hue,boost,lumaMix,shadows,highlights,noise,sm,wh,ros,dof,dofEn,fSz; uniform vec2 fPt;
+    uniform vec4 lft,gam,gan,off;
+    const vec3 W=vec3(0.299,0.587,0.114);
+    vec3 satf(vec3 c, float s){ float g=dot(c,W); return mix(vec3(g),c,s); }
+    vec3 rgb2hsv(vec3 c) {
+        vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+        vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+        vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+        float d = q.x - min(q.w, q.y);
+        float e = 1.0e-10;
+        return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+    }
+    vec3 hsv2rgb(vec3 c) {
+        vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+        vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+        return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    }
+    vec3 denoise(sampler2D s, vec2 uv, float str) {
+        vec3 center = texture2D(s, uv).rgb;
+        if(str < 0.01) return center;
+        vec2 d = vec2(1.0)/res;
+        vec3 sum = vec3(0.0); float total = 0.0;
+        vec2 offs[4]; offs[0]=vec2(-1.0,-1.0); offs[1]=vec2(1.0,-1.0); offs[2]=vec2(-1.0,1.0); offs[3]=vec2(1.0,1.0);
+        sum += center; total += 1.0;
+        for(int i=0; i<4; i++){
+            vec3 samp = texture2D(s, uv + offs[i]*d*1.5).rgb;
+            float diff = length(center - samp);
+            float w = smoothstep(0.2, 0.0, diff);
+            sum += samp*w; total += w;
+        }
+        return mix(center, sum/total, str);
+    }
+    void main(){
+        vec4 px=texture2D(t,v); vec3 c=px.rgb;
+        if(noise > 0.0) c = denoise(t, v, noise);
+        if(dofEn>0.5 && dof>0.0){
+            float aspect=res.x/res.y; vec2 dv=(v-fPt); dv.x*=aspect; float d=length(dv);
+            float str=dof*0.0002; float amt=smoothstep(fSz*0.8, fSz*1.2, d)*str*20.0;
+            if(amt>0.00001){ 
+                vec3 b=texture2D(t,v+vec2(amt,0)).rgb; b+=texture2D(t,v-vec2(amt,0)).rgb; 
+                b+=texture2D(t,v+vec2(0,amt)).rgb; b+=texture2D(t,v-vec2(0,amt)).rgb; 
+                c=mix(c,b*0.25,0.9); 
+            }
+        }
+        if(sm>0.0){ vec2 k=vec2(2.0)*sm/res; vec3 b=texture2D(t,v+k).rgb+texture2D(t,v-k).rgb; float sk=(c.r>c.g&&c.g>c.b)?1.0:0.0; c=mix(c,b*0.5,sm*sk*0.6); }
+        if(abs(hue) > 0.001) { vec3 hsv = rgb2hsv(c); hsv.x += hue; c = hsv2rgb(hsv); }
+        c+=brt; c*=pow(2.0,exp); c=0.5+(c-0.5)*con; c=satf(c,sat); c=satf(c,1.0+boost);
+        float l=dot(c,W); c+=shadows*(1.0-smoothstep(0.0,0.5,l))*0.2; c-=highlights*smoothstep(0.5,1.0,l)*0.2;
+        vec3 L=lft.rgb+lft.w; vec3 G=1.0/(1.0+gam.rgb+gam.w); vec3 A=1.0+gan.rgb+gan.w;
+        vec3 cg=(c+L*0.2)*A; cg=pow(max(vec3(0),cg),G); cg+=(off.rgb+off.w)*0.2;
+        float lOut=dot(cg,W); vec3 cFix=cg*((lOut>0.001)?(l/lOut):1.0); c=mix(cFix,cg,lumaMix);
+        if(wh>0.0&&c.r>c.g&&c.g>c.b) c+=wh*0.15; if(ros>0.0&&c.r>c.g&&c.g>c.b) c.r+=ros*0.05;
+        gl_FragColor=vec4(c,px.a);
+    }
+</script>
+
+<script>
+    const def={brt:0,exp:0,con:1,sat:1,hue:0,boost:0,shadows:0,highlights:0,lumaMix:1,noise:0,sm:0,wh:0,ros:0,dof:0,dofEn:0,fSz:0.2,fPt:{x:0.5,y:0.5},lift:{r:0,g:0,b:0,y:0},gamma:{r:0,g:0,b:0,y:0},gain:{r:0,g:0,b:0,y:0},offset:{r:0,g:0,b:0,y:0},pre:'none'};
+    let st=JSON.parse(JSON.stringify(def)), tex=null, prog=null, cvs=document.getElementById('gl'), gl, tw=0, th=0, zoom=1;
+
+    try{gl=cvs.getContext('webgl',{preserveDrawingBuffer:true});}catch(e){}
+
+    window.onload=()=>{
+        document.getElementById('loading').style.display='none';
+        if(!gl)return alert("WebGL Unsupported"); initGL();
+        
+        document.getElementById('fileInput').onchange=e=>{if(e.target.files.length)load(e.target.files[0]);};
+        
+        const vp=document.getElementById('vp');
+        // Pan
+        let pan=false, sx=0, sy=0, px=0, py=0;
+        vp.addEventListener('mousedown',e=>{
+            if(e.target.closest('.crop-box')||e.target.closest('.focus-pt')||!tex)return;
+            pan=true; sx=e.clientX; sy=e.clientY; vp.style.cursor='move';
+        });
+        window.addEventListener('mousemove',e=>{
+            if(pan){
+                const dx=e.clientX-sx, dy=e.clientY-sy; 
+                px+=dx; py+=dy; sx=e.clientX; sy=e.clientY; 
+                updStage(px,py);
+            }
+        });
+        window.addEventListener('mouseup',()=>{pan=false; vp.style.cursor='default';});
+
+        // Zoom
+        vp.addEventListener('wheel',e=>{
+            if(!tex)return; e.preventDefault();
+            const fac=1.1; if(e.deltaY<0) zoom*=fac; else zoom/=fac;
+            zoom=Math.min(Math.max(0.05,zoom),20); updStage(px,py);
+        },{passive:false});
+
+        initCrop(); initFocus();
+        
+        document.querySelectorAll('.g-trk').forEach(el=>{el.addEventListener('wheel',e=>{e.preventDefault();const k=el.getAttribute('onmousedown').split("'")[1],c=el.getAttribute('onmousedown').split("'")[3];modVal(k,c,st[k][c]+(e.deltaY<0?0.02:-0.02));},{passive:false});});
+        document.querySelectorAll('input[type=range]').forEach(el=>{el.addEventListener('wheel',e=>{e.preventDefault();let s=parseFloat(el.step)||0.01;if(el.id=='s-dof')s=1;let v=parseFloat(el.value)+(e.deltaY<0?s:-s);v=Math.min(parseFloat(el.max),Math.max(parseFloat(el.min),v));el.value=v;upd(el.id.substring(2),v);},{passive:false});});
+    };
+
+    function updStage(x=0,y=0){document.getElementById('stage').style.transform=`translate(${x}px,${y}px) scale(${zoom})`;}
+
+    function initGL(){
+        const vs=gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs,document.getElementById('vs').text); gl.compileShader(vs);
+        const fs=gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs,document.getElementById('fs').text); gl.compileShader(fs);
+        prog=gl.createProgram(); gl.attachShader(prog,vs); gl.attachShader(prog,fs); gl.linkProgram(prog); gl.useProgram(prog);
+        gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer()); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,0,1,1,-1,1,1,-1,1,0,0,-1,1,0,0,1,-1,1,1,1,1,1,0]),gl.STATIC_DRAW);
+    }
+    function load(f){
+        document.getElementById('loading').style.display='flex'; const img=new Image();
+        img.onload=()=>{
+            const max=gl.getParameter(gl.MAX_TEXTURE_SIZE); tw=img.width; th=img.height;
+            let w=tw, h=th; if(w>max||h>max){const s=Math.min(max/w,max/h);w=Math.floor(w*s);h=Math.floor(h*s);}
+            const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+            
+            if(tex)gl.deleteTexture(tex); tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+            gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+            gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);
+            
+            document.getElementById('empty').style.display='none'; document.getElementById('stage').style.display='block'; document.getElementById('loading').style.display='none';
+            
+            cvs.width=w; cvs.height=h; cvs.style.width=w+'px'; cvs.style.height=h+'px';
+            document.getElementById('stage').style.width=w+'px'; document.getElementById('stage').style.height=h+'px';
+            gl.viewport(0,0,w,h);
+            
+            const vp=document.getElementById('vp');
+            zoom = Math.min((vp.clientWidth-40)/w, (vp.clientHeight-40)/h);
+            px=0; py=0; updStage(0,0); resetAll();
+        }; img.src=URL.createObjectURL(f); document.getElementById('fileInput').value='';
+    }
+    function draw(){
+        if(!tex)return; gl.useProgram(prog);
+        const p=gl.getAttribLocation(prog,"p"); gl.enableVertexAttribArray(p); gl.vertexAttribPointer(p,2,gl.FLOAT,false,16,0);
+        const u=gl.getAttribLocation(prog,"u"); gl.enableVertexAttribArray(u); gl.vertexAttribPointer(u,2,gl.FLOAT,false,16,8);
+        const f=(n,v)=>gl.uniform1f(gl.getUniformLocation(prog,n),v);
+        f("brt",st.brt); f("exp",st.exp); f("con",st.con); f("sat",st.sat); f("hue",st.hue); f("boost",st.boost); f("lumaMix",st.lumaMix); f("shadows",st.shadows); f("highlights",st.highlights); f("noise",st.noise);
+        f("sm",st.sm); f("wh",st.wh); f("ros",st.ros); f("dof",st.dof); f("dofEn",st.dofEn); f("fSz",st.fSz);
+        gl.uniform2f(gl.getUniformLocation(prog,"fPt"),st.fPt.x,st.fPt.y); gl.uniform2f(gl.getUniformLocation(prog,"res"),cvs.width,cvs.height);
+        const v4=(n,o)=>gl.uniform4f(gl.getUniformLocation(prog,n),o.r,o.g,o.b,o.y);
+        v4("lft",st.lift); v4("gam",st.gamma); v4("gan",st.gain); v4("off",st.offset); gl.drawArrays(gl.TRIANGLES,0,6);
+    }
+    window.upd=(k,v)=>{st[k]=parseFloat(v);document.getElementById('v-'+k).innerText=st[k];if(k=='fSz')updFocus();draw();};
+    window.togDof=()=>{st.dofEn=document.getElementById('chk-dof').checked?1:0;updDoFUI();draw();};
+    window.setTab=(id)=>{document.querySelectorAll('.tab,.p-con').forEach(e=>e.classList.remove('active'));document.getElementById('t-'+id).classList.add('active');document.querySelector(`.tab[onclick="setTab('${id}')"]`).classList.add('active');if(id!='crop')toggleCrop(false);updDoFUI();};
+    function updDoFUI(){const en=st.dofEn>0.5, w=document.getElementById('fPt'); if(en&&document.getElementById('t-por').classList.contains('active')){w.style.display='block';document.getElementById('mod-dof').classList.add('enabled');}else{w.style.display='none';document.getElementById('mod-dof').classList.remove('enabled');}}
+    let gd=null; window.gr=(e,k,c)=>{gd={k,c,y:e.clientY,v:st[k][c]};window.addEventListener('mousemove',gm);window.addEventListener('mouseup',gu);};
+    function gm(e){if(!gd)return;modVal(gd.k,gd.c,gd.v+(gd.y-e.clientY)*0.01);}
+    function gu(){gd=null;window.removeEventListener('mousemove',gm);window.removeEventListener('mouseup',gu);}
+    function modVal(k,c,v){st[k][c]=Math.max(-1,Math.min(1,v));const h=Math.abs(st[k][c])*50,el=document.getElementById(`g-${k}-${c}`);if(el){el.style.height=h+'%';el.style.top=(st[k][c]>0?50-h:50)+'%';}document.getElementById(`gv-${k}-${c}`).innerText=st[k][c].toFixed(2);if(c!='y')updPuck(k);draw();}
+    window.pk=(e,k)=>{gd={k,type:'pk'};window.addEventListener('mousemove',pm);window.addEventListener('mouseup',pu);};
+    function pm(e){st[gd.k].r+=e.movementX*0.005;st[gd.k].b-=e.movementY*0.005;updPuck(gd.k);['r','b'].forEach(c=>modVal(gd.k,c,st[gd.k][c]));}
+    function pu(){window.removeEventListener('mousemove',pm);window.removeEventListener('mouseup',pu);}
+    function updPuck(k){document.getElementById(`pk-${k}`).style.transform=`translate(${st[k].r*20}px,${st[k].b*-20}px)`;}
+
+    function initFocus(){const p=document.getElementById('fPt');let d=false;p.addEventListener('mousedown',e=>{e.stopPropagation();d=true;});window.addEventListener('mouseup',()=>d=false);window.addEventListener('mousemove',e=>{if(!d)return;const r=document.getElementById('stage').getBoundingClientRect();let x=(e.clientX-r.left)/zoom, y=(e.clientY-r.top)/zoom;p.style.left=x+'px';p.style.top=y+'px';st.fPt={x:x/cvs.width,y:1.0-y/cvs.height};updFocus();draw();});}
+    function updFocus(){const s=st.fSz*cvs.width*zoom;document.querySelector('.focus-ring').style.width=s*2+'px';document.querySelector('.focus-ring').style.height=s*2+'px';}
+    
+    window.applyFocus=()=>{
+        const t=document.createElement('canvas'); t.width=cvs.width; t.height=cvs.height; t.getContext('2d').drawImage(cvs,0,0);
+        const i=new Image(); i.onload=()=>{ gl.bindTexture(gl.TEXTURE_2D,tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,t); st.dofEn=0; st.dof=0; syncUI(); draw(); }; i.src=t.toDataURL();
+    };
+
+    let cropRot=0;
+    function initCrop(){
+        const b=document.getElementById('cBox'), r=document.getElementById('rH'), rc=document.getElementById('cropRot'); let d=null, s={};
+        b.addEventListener('mousedown',e=>{e.stopPropagation();d=e.target.className.includes('handle')?e.target.dataset.d:(e.target==r?'rt':'mv');s={mx:e.clientX,my:e.clientY,l:b.offsetLeft,t:b.offsetTop,w:b.offsetWidth,h:b.offsetHeight, cx:b.getBoundingClientRect().left+b.offsetWidth/2, cy:b.getBoundingClientRect().top+b.offsetHeight/2, r:cropRot};window.addEventListener('mousemove',cm);window.addEventListener('mouseup',cu);});
+        const cm=e=>{if(!d)return; const dx=(e.clientX-s.mx)/zoom, dy=(e.clientY-s.my)/zoom;
+            if(d=='mv'){b.style.left=(s.l+dx)+'px';b.style.top=(s.t+dy)+'px';}
+            else if(d=='rt'){ 
+                const ang = Math.atan2(e.clientY-s.cy, e.clientX-s.cx)*180/Math.PI+90; 
+                cropRot = s.r + (ang - (Math.atan2(s.my-s.cy,s.mx-s.cx)*180/Math.PI+90)); 
+                rc.style.transform=`rotate(${cropRot}deg)`; 
+                document.getElementById('rTip').innerText=Math.round(cropRot)+'\u00B0'; document.getElementById('rTip').style.display='block';
+            }
+            else{let nw=s.w,nh=s.h; if(d.includes('e'))nw+=dx; if(d.includes('s'))nh+=dy; if(d.includes('w')){nw-=dx;b.style.left=(s.l+dx)+'px';} if(d.includes('n')){nh-=dy;b.style.top=(s.t+dy)+'px';} b.style.width=nw+'px';b.style.height=nh+'px';}
         };
-        const symbolMap = {
-            'BTCUSDT': 'BTC',
-            'ETHUSDT': 'ETH',
-            'SOLUSDT': 'SOL',
-            'PEOPLEUSDT': 'PEOPLE',
-            'PNUTUSDT': 'PNUT',
-            'SUIUSDT': 'SUI',
-            'WIFUSDT': 'WIF',
-            'AAVEUSDT': 'AAVE',
-            'CRVUSDT': 'CRV'
+        const cu=()=>{d=null;window.removeEventListener('mousemove',cm);window.removeEventListener('mouseup',cu); document.getElementById('rTip').style.display='none';};
+    }
+    window.toggleCrop=(s)=>{const u=document.getElementById('cropUI');if(s&&tex){u.style.display='block';document.getElementById('cBtns').style.display='flex';
+        const w=cvs.width, h=cvs.height; const b=document.getElementById('cBox');
+        b.style.width=w*0.5+'px';b.style.height=h*0.5+'px';b.style.left=w*0.25+'px';b.style.top=h*0.25+'px';
+        cropRot=0; document.getElementById('cropRot').style.transform='rotate(0deg)';
+    }else{u.style.display='none';document.getElementById('cBtns').style.display='none';}}
+    
+    window.applyCrop=()=>{
+        const b=document.getElementById('cBox');
+        const x=b.offsetLeft, y=b.offsetTop, w=b.offsetWidth, h=b.offsetHeight;
+        const tc=document.createElement('canvas'); tc.width=cvs.width; tc.height=cvs.height;
+        tc.getContext('2d').drawImage(cvs,0,0);
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        const ctx2=c.getContext('2d');
+        ctx2.translate(w/2, h/2); ctx2.rotate(-cropRot*Math.PI/180); 
+        ctx2.drawImage(tc, -x-w/2, -y-h/2);
+        const newImg=new Image();
+        newImg.onload=()=>{
+            tw=w; th=h;
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);
+            resetAll(false); resize(w,h); toggleCrop(false);
         };
+        newImg.src=c.toDataURL();
+    };
+    function resize(w,h){cvs.width=w; cvs.height=h; cvs.style.width=w+'px'; cvs.style.height=h+'px'; document.getElementById('stage').style.width=w+'px'; document.getElementById('stage').style.height=h+'px'; gl.viewport(0,0,w,h); const vp=document.getElementById('vp'); zoom=Math.min((vp.clientWidth-40)/w,(vp.clientHeight-40)/h); updStage(0,0);}
 
-        // 获取 DOM 元素
-        const mainContainer = document.querySelector('.main-container');
-        const zoomInBtn = document.getElementById('zoom-in');
-        const zoomOutBtn = document.getElementById('zoom-out');
-        const setAlertMainBtn = document.getElementById('set-alert-main-btn');
-        const notificationModal = document.getElementById('notification-modal');
-        const notificationTitle = document.getElementById('notification-title');
-        const notificationMessage = document.getElementById('notification-message');
-        const closeNotificationBtn = document.getElementById('close-notification-btn');
-        const cycleCountdownEl = document.getElementById('cycle-countdown');
-        const cycleCounterEl = document.getElementById('cycle-counter');
-        const alertInputModal = document.getElementById('alert-input-modal');
-        const alertInputTitle = document.getElementById('alert-input-title');
-        const alertInputMessage = document.getElementById('alert-input-message');
-        const alertPriceInput = document.getElementById('alert-price-input');
-        const cancelAlertBtn = document.getElementById('cancel-alert-btn');
-        const setAlertBtn = document.getElementById('set-alert-btn');
-        const alertSymbolSelect = document.getElementById('alert-symbol-select');
-        
-        // 缩放状态
-        let currentScale = 1.0;
-        const maxScale = 1.5;
-        const minScale = 0.8;
-        const scaleStep = 0.1;
-
-        // 存储上一个周期的价格
-        let previousPrices = {};
-        Object.values(symbols).forEach(s => previousPrices[s] = null);
-
-        // 存储价格历史，用于趋势判断（最近3个价格）
-        let priceHistory = {};
-        Object.values(symbols).forEach(s => priceHistory[s] = []);
-
-        // 存储价格提醒
-        let priceAlerts = {};
-        Object.values(symbols).forEach(s => priceAlerts[s] = null);
-
-        // 用于跟踪5分钟趋势的五角星数量
-        let trendStars = {};
-        Object.values(symbols).forEach(s => trendStars[s] = 0);
-
-        // 用于跟踪上一个5分钟K线的收盘价，以便判断趋势
-        let lastFiveMinClose = {};
-        Object.values(symbols).forEach(s => lastFiveMinClose[s] = null);
-        
-        // 倒计时和周期计数器状态
-        let countdownMinutes = 5;
-        let countdownSeconds = 0;
-        let cycleCount = 1;
-        const maxCycles = 12;
-
-        /**
-         * 使用指数退避安全地调用 API
-         * @param {Function} apiCall - 包含 API 调用的异步函数
-         * @param {number} retries - 重试次数
-         */
-        async function fetchWithRetry(apiCall, retries = 3) {
-            let delay = 1000;
-            for (let i = 0; i < retries; i++) {
-                try {
-                    return await apiCall();
-                } catch (error) {
-                    console.error(`API 调用失败，正在重试第 ${i + 1} 次...`, error);
-                    if (i < retries - 1) {
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        delay *= 2;
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-        }
-
-        /**
-         * 从 Binance API 获取实时价格
-         * @param {string} symbol - 货币符号，例如 'BTCUSDT'
-         * @returns {Promise<string>} - 价格字符串
-         */
-        async function fetchPrice(symbol) {
-            const response = await fetchWithRetry(() => fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`));
-            if (!response.ok) {
-                throw new Error('网络请求失败');
-            }
-            const data = await response.json();
-            return parseFloat(data.price).toFixed(2);
-        }
-
-        /**
-         * 从 Binance API 获取 K 线数据
-         * @param {string} symbol - 货币符号，例如 'BTCUSDT'
-         * @param {string} interval - 时间间隔，例如 '1h' 或 '5m'
-         * @returns {Promise<Array>} - K 线数据数组
-         */
-        async function fetchKlines(symbol, interval = '5m') {
-            const response = await fetchWithRetry(() => fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=2`));
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`获取 K 线数据失败: ${response.status} ${response.statusText} - ${errorText}`);
-            }
-            const data = await response.json();
-            if (!Array.isArray(data) || data.length < 2) {
-                 throw new Error('K 线数据为空或格式不正确');
-            }
-            return data;
-        }
-        
-        /**
-         * 从 Binance API 获取最近一小时的 K 线数据 (1分钟间隔)
-         * @param {string} symbol - 货币符号，例如 'BTCUSDT'
-         * @returns {Promise<Array>} - K 线数据数组
-         */
-        async function fetchHourlyData(symbol) {
-            const response = await fetchWithRetry(() => fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=60`));
-            if (!response.ok) {
-                 const errorText = await response.text();
-                 throw new Error(`获取小时数据失败: ${response.status} ${response.statusText} - ${errorText}`);
-            }
-            return await response.json();
-        }
-
-        /**
-         * 更新所有货币的价格，并根据价格变动改变颜色
-         */
-        async function updatePrices() {
-            try {
-                // 动态生成所有币种的 API 请求
-                const pricePromises = Object.values(symbols).map(symbol => fetchPrice(symbol));
-                const allPrices = await Promise.all(pricePromises);
-
-                Object.keys(symbols).forEach((coin, index) => {
-                    const symbol = symbols[coin];
-                    const price = allPrices[index];
-                    const priceEl = document.getElementById(`${coin.toLowerCase()}-price`);
-                    const indicatorEl = document.getElementById(`${coin.toLowerCase()}-trend-indicator`);
-                    
-                    if (priceEl && indicatorEl) {
-                        updatePriceDisplay(priceEl, symbol, price);
-                        updateTrendIndicator(indicatorEl, symbol, price);
-                    }
-                });
-                
-                checkPriceAlerts();
-
-            } catch (error) {
-                console.error('更新价格失败:', error);
-                showAlertModal("更新失败", "无法获取实时价格，请检查网络连接或稍后再试。");
-            }
-        }
-
-        /**
-         * 更新价格显示并根据价格变化设置字体颜色
-         * @param {HTMLElement} element - 显示价格的 DOM 元素
-         * @param {string} symbol - 货币符号
-         * @param {string} newPrice - 新价格
-         */
-        function updatePriceDisplay(element, symbol, newPrice) {
-            const oldPrice = previousPrices[symbol];
-            const priceText = `${newPrice}`;
-
-            element.classList.remove('text-green-500', 'text-red-500', 'text-white');
-            
-            if (oldPrice === null) {
-                element.classList.add('text-white');
-            } else if (parseFloat(newPrice) > parseFloat(oldPrice)) {
-                element.classList.add('text-green-500');
-            } else if (parseFloat(newPrice) < parseFloat(oldPrice)) {
-                element.classList.add('text-red-500');
-            } else {
-                element.classList.add('text-white');
-            }
-
-            element.textContent = `$${priceText}`;
-            previousPrices[symbol] = newPrice;
-        }
-
-        /**
-         * 更新趋势指示箭头
-         * @param {HTMLElement} element - 显示箭头的 DOM 元素
-         * @param {string} symbol - 货币符号
-         * @param {string} newPrice - 新价格
-         */
-        function updateTrendIndicator(element, symbol, newPrice) {
-            priceHistory[symbol].push(parseFloat(newPrice));
-            if (priceHistory[symbol].length > 3) {
-                priceHistory[symbol].shift();
-            }
-
-            if (priceHistory[symbol].length === 3) {
-                const [p1, p2, p3] = priceHistory[symbol];
-                element.classList.remove('text-green-500', 'text-red-500');
-
-                if (p1 < p2 && p2 < p3) {
-                    element.innerHTML = '&#8599;';
-                    element.classList.add('text-green-500');
-                } else if (p1 > p2 && p2 > p3) {
-                    element.innerHTML = '&#8600;';
-                    element.classList.add('text-red-500');
-                } else {
-                    element.innerHTML = '';
-                }
-            } else {
-                element.innerHTML = '';
-            }
-        }
-
-        /**
-         * 检查是否有价格提醒被触发
-         */
-        function checkPriceAlerts() {
-            for (const symbol in priceAlerts) {
-                const alert = priceAlerts[symbol];
-                if (alert && alert.price !== null) {
-                    const currentPrice = parseFloat(previousPrices[symbol]);
-                    const alertPrice = parseFloat(alert.price);
-                    const initialPrice = parseFloat(alert.initialPrice);
-
-                    // 检查价格是否从任意方向越过了提醒价格
-                    const crossedUp = currentPrice >= alertPrice && initialPrice < alertPrice;
-                    const crossedDown = currentPrice <= alertPrice && initialPrice > alertPrice;
-
-                    if (crossedUp || crossedDown) {
-                        triggerAudioAlert();
-                        showAlertModal("价格提醒", `${symbolMap[symbol]} 已达到你的提醒价格 $${alertPrice}！`);
-                        priceAlerts[symbol] = null; // 提醒后清除
-                    }
-                }
-            }
-        }
-
-        /**
-         * 播放音频提醒
-         */
-        function triggerAudioAlert() {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-
-            oscillator.type = 'sine';
-            oscillator.frequency.value = 440;
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.5, audioContext.currentTime + 0.1);
-
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.start();
-            
-            setTimeout(() => {
-                gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
-                oscillator.stop(audioContext.currentTime + 0.1);
-            }, 2000);
-        }
-
-        /**
-         * 显示通知模态框
-         * @param {string} title - 标题
-         * @param {string} message - 消息内容
-         */
-        function showAlertModal(title, message) {
-            notificationTitle.textContent = title;
-            notificationMessage.textContent = message;
-            notificationModal.classList.remove('hidden');
-        }
-
-        /**
-         * 更新五角星显示
-         * @param {string} symbol - 货币符号
-         * @param {number} starCount - 五角星数量
-         */
-        function renderStars(symbol, starCount) {
-            const starsElement = document.getElementById(symbol.toLowerCase() + '-stars');
-            if (starsElement) {
-                starsElement.innerHTML = '&#9733;'.repeat(starCount);
-            }
-        }
-
-        /**
-         * 更新趋势五角星
-         */
-        async function updateTrendStars() {
-            try {
-                const klinesPromises = Object.values(symbols).map(symbol => fetchKlines(symbol));
-                const allKlines = await Promise.all(klinesPromises);
-
-                Object.keys(symbols).forEach((coin, index) => {
-                    const symbol = symbols[coin];
-                    const klines = allKlines[index];
-
-                    if (!klines || klines.length < 2) return;
-
-                    const prevClosePrice = parseFloat(klines[0][4]);
-                    const currentClosePrice = parseFloat(klines[1][4]);
-
-                    if (lastFiveMinClose[symbol] === null) {
-                        lastFiveMinClose[symbol] = prevClosePrice;
-                        return;
-                    }
-                    
-                    if (currentClosePrice > lastFiveMinClose[symbol]) {
-                        trendStars[symbol] = Math.min(5, trendStars[symbol] + 1);
-                    } else if (currentClosePrice <= lastFiveMinClose[symbol]) {
-                        trendStars[symbol] = 0;
-                    }
-
-                    lastFiveMinClose[symbol] = currentClosePrice;
-                    renderStars(coin, trendStars[symbol]);
-                });
-            } catch (error) {
-                console.error("更新五角星失败:", error);
-            }
-        }
-        
-        /**
-         * 更新倒计时和周期计数
-         */
-        function updateTimer() {
-            if (countdownMinutes === 0 && countdownSeconds === 0) {
-                countdownMinutes = 5;
-                countdownSeconds = 0;
-                
-                cycleCount++;
-                if (cycleCount > maxCycles) {
-                    cycleCount = 1;
-                }
-                
-                updateTrendStars();
-            }
-            
-            if (countdownSeconds === 0) {
-                countdownMinutes--;
-                countdownSeconds = 59;
-            } else {
-                countdownSeconds--;
-            }
-            
-            const formattedMinutes = String(countdownMinutes).padStart(2, '0');
-            const formattedSeconds = String(countdownSeconds).padStart(2, '0');
-            cycleCountdownEl.textContent = `${formattedMinutes}:${formattedSeconds}`;
-            cycleCounterEl.textContent = `(第 ${cycleCount} 周期 / ${maxCycles})`;
-        }
-
-        /**
-         * 绘制价格曲线图
-         * @param {string} symbol - 货币符号
-         * @param {string} containerId - 图表容器的 ID
-         */
-        async function fetchAndDrawHourlyChart(symbol, containerId) {
-            try {
-                const klines = await fetchHourlyData(symbols[symbol]);
-                if (!klines || klines.length === 0) {
-                    console.error(`没有获取到 ${symbol} 的小时数据.`);
-                    document.getElementById(containerId).innerHTML = `<p class="text-red-500 text-center">无法加载图表数据。</p>`;
-                    return;
-                }
-
-                const data = klines.map(d => ({
-                    time: new Date(d[0]),
-                    price: parseFloat(d[4])
-                }));
-
-                const container = d3.select(`#${containerId}`);
-                container.select("svg").remove();
-
-                const margin = { top: 10, right: 30, bottom: 30, left: 60 };
-                const width = container.node().getBoundingClientRect().width - margin.left - margin.right;
-                const height = 200 - margin.top - margin.bottom;
-
-                const svg = container.append("svg")
-                    .attr("width", width + margin.left + margin.right)
-                    .attr("height", height + margin.top + margin.bottom)
-                    .append("g")
-                    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-                const x = d3.scaleTime()
-                    .domain(d3.extent(data, d => d.time))
-                    .range([0, width]);
-                
-                const xAxis = d3.axisBottom(x)
-                    .ticks(d3.timeMinute.every(10))
-                    .tickFormat(d3.timeFormat("%H:%M", 'Asia/Shanghai'));
-
-                svg.append("g")
-                    .attr("transform", `translate(0,${height})`)
-                    .call(xAxis)
-                    .call(g => g.select(".domain").remove())
-                    .selectAll("text")
-                    .style("fill", "#c9d1d9");
-
-                const y = d3.scaleLinear()
-                    .domain([d3.min(data, d => d.price) * 0.99, d3.max(data, d => d.price) * 1.01])
-                    .range([height, 0]);
-
-                svg.append("g")
-                    .call(d3.axisLeft(y).tickFormat(d3.format(".2f")).ticks(5))
-                    .call(g => g.select(".domain").remove())
-                    .selectAll("text")
-                    .style("fill", "#c9d1d9");
-
-                svg.append("path")
-                    .datum(data)
-                    .attr("fill", "none")
-                    .attr("stroke", "#60a5fa")
-                    .attr("stroke-width", 2)
-                    .attr("d", d3.line()
-                        .x(d => x(d.time))
-                        .y(d => y(d.price))
-                    );
-
-                // 添加 tooltip
-                const tooltip = d3.select("body").append("div")
-                    .attr("class", "chart-tooltip hidden");
-
-                const focus = svg.append("g")
-                    .attr("class", "focus hidden");
-
-                focus.append("circle")
-                    .attr("r", 5)
-                    .attr("fill", "#fff")
-                    .attr("stroke", "#60a5fa")
-                    .attr("stroke-width", 2);
-
-                svg.append("rect")
-                    .attr("class", "overlay")
-                    .attr("width", width)
-                    .attr("height", height)
-                    .style("fill", "none")
-                    .style("pointer-events", "all")
-                    .on("mouseover", function() { focus.classed("hidden", false); tooltip.classed("hidden", false); })
-                    .on("mouseout", function() { focus.classed("hidden", true); tooltip.classed("hidden", true); })
-                    .on("mousemove", mousemove);
-
-                function mousemove(event) {
-                    const bisectDate = d3.bisector(d => d.time).left;
-                    const x0 = x.invert(d3.pointer(event)[0]);
-                    const i = bisectDate(data, x0, 1);
-                    const d0 = data[i - 1];
-                    const d1 = data[i];
-                    const d = x0 - d0.time > d1.time - x0 ? d1 : d0;
-                    focus.attr("transform", `translate(${x(d.time)},${y(d.price)})`);
-                    tooltip.style("left", `${event.pageX + 10}px`)
-                           .style("top", `${event.pageY - 28}px`)
-                           .html(`<strong>${d3.timeFormat("%H:%M", 'Asia/Shanghai')(d.time)}</strong><br>$${d.price.toFixed(2)}`);
-                }
-            } catch (error) {
-                console.error(`绘制 ${symbol} 图表失败:`, error);
-                document.getElementById(containerId).innerHTML = `<p class="text-red-500 text-center">加载图表时出错。</p>`;
-            }
-        }
-        
-        /**
-         * 更新提醒对话框中的币种当前价格信息
-         */
-        function updateAlertMessage() {
-            const binanceSymbol = alertSymbolSelect.value;
-            const coinSymbol = symbolMap[binanceSymbol];
-            const currentPrice = previousPrices[binanceSymbol];
-            alertInputMessage.textContent = `当前 ${coinSymbol} 价格为 $${currentPrice || '-'}，请输入你的提醒价格：`;
-        }
-
-        /**
-         * 启动应用程序的主要逻辑
-         */
-        function startApp() {
-            try {
-                zoomInBtn.addEventListener('click', () => {
-                    if (currentScale < maxScale) {
-                        currentScale += scaleStep;
-                        mainContainer.style.transform = `scale(${currentScale})`;
-                    }
-                });
-
-                zoomOutBtn.addEventListener('click', () => {
-                    if (currentScale > minScale) {
-                        currentScale -= scaleStep;
-                        mainContainer.style.transform = `scale(${currentScale})`;
-                    }
-                });
-                
-                setAlertMainBtn.addEventListener('click', () => {
-                    updateAlertMessage();
-                    alertInputModal.classList.remove('hidden');
-                    alertPriceInput.focus();
-                });
-                
-                alertSymbolSelect.addEventListener('change', updateAlertMessage);
-
-                cancelAlertBtn.addEventListener('click', () => {
-                    alertInputModal.classList.add('hidden');
-                    alertPriceInput.value = '';
-                });
-
-                setAlertBtn.addEventListener('click', () => {
-                    const alertPrice = parseFloat(alertPriceInput.value);
-                    const binanceSymbol = alertSymbolSelect.value;
-                    const coinSymbol = symbolMap[binanceSymbol];
-                    const currentPrice = previousPrices[binanceSymbol];
-
-                    if (alertPrice && !isNaN(alertPrice)) {
-                        priceAlerts[binanceSymbol] = { 
-                            price: alertPrice, 
-                            initialPrice: currentPrice 
-                        };
-                        showAlertModal("提醒设置成功", `当 ${coinSymbol} 价格达到 $${alertPrice} 时，你将会收到提醒。`);
-                    } else {
-                         showAlertModal("输入无效", "请输入一个有效的数字价格。");
-                    }
-                    alertInputModal.classList.add('hidden');
-                    alertPriceInput.value = '';
-                });
-
-                closeNotificationBtn.addEventListener('click', () => {
-                    notificationModal.classList.add('hidden');
-                });
-        
-                updatePrices();
-                updateTrendStars();
-                
-                // 动态绘制所有币种的图表
-                Object.keys(symbols).forEach(coin => {
-                    fetchAndDrawHourlyChart(coin, `${coin.toLowerCase()}-chart-container`);
-                });
-
-                // 定时更新
-                setInterval(updatePrices, 15000);
-                setInterval(updateTimer, 1000);
-                setInterval(() => {
-                    Object.keys(symbols).forEach(coin => {
-                        fetchAndDrawHourlyChart(coin, `${coin.toLowerCase()}-chart-container`);
-                    });
-                }, 60000);
-
-            } catch (error) {
-                console.error("应用程序初始化失败:", error);
-                showAlertModal("应用程序错误", `应用程序初始化失败。错误信息: ${error.message}`);
-            }
-        }
-        
-        window.onload = startApp;
-    </script>
+    window.setPre=(n)=>{resetState(false);st.pre=n;document.querySelectorAll('.preset').forEach(e=>e.classList.remove('active'));document.getElementById('p-'+n).classList.add('active');
+        if(n=='portrait'){st.sm=0.3;st.wh=0.2;}if(n=='land'){st.sat=1.2;}if(n=='kodak'){st.sat=1.1;st.temp=0.1;}if(n=='fuji'){st.gain.b=0.1;}
+        if(n=='panasonic'){st.con=0.9;st.sat=0.9;}if(n=='sony'){st.con=1.2;}if(n=='canon'){st.ros=0.1;}if(n=='nikon'){st.con=1.05;}if(n=='pentax'){st.sat=1.3;}if(n=='ricoh'){st.con=1.3;st.sat=0.8;}if(n=='polaroid'){st.con=0.9;st.lift.r=0.1;}
+        if(n=='food'){st.sat=1.3;st.temp=0.1;}if(n=='plant'){st.sat=1.2;st.lift.g=0.05;}if(n=='animal'){st.con=1.1;st.shadows=0.1;}if(n=='movie'){st.con=1.1;st.lift.b=-0.1;}
+        syncUI();draw();
+    };
+    function resetState(f=true){const p=st.pre;st=JSON.parse(JSON.stringify(def));if(!f)st.pre=p; else st.fPt={x:0.5,y:0.5}; syncUI();}
+    window.resetAll=(f=true)=>{resetState(f);if(f)document.querySelectorAll('.preset').forEach(e=>e.classList.remove('active'));draw();};
+    window.rstW=(t)=>{st[t]={r:0,g:0,b:0,y:0};['r','g','b','y'].forEach(c=>modVal(t,c,0));draw();};
+    function syncUI(){
+        ['brt','exp','con','sat','hue','boost','lumaMix','shadows','highlights','noise','sm','wh','ros','dof','fSz'].forEach(k=>{let id=k;if(k=='shadows')id='shd';if(k=='highlights')id='hil';if(k=='boost')id='boost';if(k=='lumaMix')id='lumaMix';if(k=='sm')id='sm';if(k=='wh')id='wh';if(k=='ros')id='ros';const el=document.getElementById('s-'+id);if(el){el.value=st[k];document.getElementById('v-'+id).innerText=st[k];}});
+        ['lift','gamma','gain','offset'].forEach(k=>{['r','g','b','y'].forEach(c=>modVal(k,c,st[k][c]));});
+        document.getElementById('chk-dof').checked=!!st.dofEn;updDoFUI();updFocus();
+    }
+    window.exportImg=()=>{if(!tex)return;draw();const a=document.createElement('a');a.download='LUMINA.jpg';a.href=cvs.toDataURL('image/jpeg',0.95);a.click();};
+</script>
 </body>
 </html>
