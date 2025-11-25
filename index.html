@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LUMINA PRO v1.2</title>
+    <title>LUMINA 专业版 v1.2.1</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
@@ -11,7 +11,7 @@
     <style>
         /* --- 基础定义 --- */
         :root { --accent: #00e5ff; --bg: #050505; --panel: #0a0a0a; --text: #eee; --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom); }
-        * { box-sizing: border-box; user-select: none; outline: none; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "SF Pro Text", Roboto, sans-serif; }
+        * { box-sizing: border-box; user-select: none; outline: none; -webkit-tap-highlight-color: transparent; font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
         body { margin: 0; background: var(--bg); color: var(--text); height: 100vh; width: 100vw; overflow: hidden; display: flex; flex-direction: column; }
 
         /* --- 顶部栏 --- */
@@ -50,9 +50,15 @@
         .crop-grid { position: absolute; inset: 0; opacity: 0.3; pointer-events: none; background: linear-gradient(to right, transparent 33%, #fff 33%, #fff 33.5%, transparent 33.5%, transparent 66%, #fff 66%, #fff 66.5%, transparent 66.5%), linear-gradient(to bottom, transparent 33%, #fff 33%, #fff 33.5%, transparent 33.5%, transparent 66%, #fff 66%, #fff 66.5%, transparent 66.5%); }
         .crop-handle { position: absolute; width: 24px; height: 24px; border: 2px solid #fff; border-radius: 50%; background: var(--accent); z-index: 90; transform: translate(-50%, -50%); box-shadow: 0 0 10px var(--accent); }
         .ch-tl { top:0; left:0; } .ch-tr { top:0; left:100%; } .ch-bl { top:100%; left:0; } .ch-br { top:100%; left:100%; }
-        
         .crop-btn-bar { position: absolute; bottom: 40px; left:0; right:0; display:flex; justify-content:center; gap:30px; z-index:100; pointer-events:auto; }
-        .c-act-btn { background: #222; color:#ccc; border:1px solid #444; padding: 10px 24px; border-radius:30px; font-size:13px; font-weight:bold; letter-spacing:1px; transition:0.2s; }
+
+        /* --- 液化引导层 --- */
+        #warp-overlay { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 90; box-shadow: inset 0 0 0 4px var(--accent); border-radius: 4px; }
+        #warp-guide { position: absolute; width: 60px; height: 60px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; transform: translate(-50%,-50%); display: none; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .warp-msg { position: absolute; top: 20px; width: 100%; text-align: center; color: var(--accent); font-weight: bold; font-size: 14px; text-shadow: 0 2px 10px #000; background: rgba(0,0,0,0.6); padding: 5px 0; backdrop-filter: blur(5px); }
+        
+        /* 通用按钮 */
+        .c-act-btn { background: #222; color:#ccc; border:1px solid #444; padding: 10px 24px; border-radius:30px; font-size:13px; font-weight:bold; letter-spacing:1px; transition:0.2s; pointer-events: auto;}
         .c-act-btn:active { transform:scale(0.95); }
         .c-act-btn.prim { background: var(--accent); color:#000; border-color:var(--accent); box-shadow: 0 0 20px rgba(0,229,255,0.3); }
 
@@ -177,7 +183,7 @@
         .lut-item.active { border-color: var(--accent); background: #1a1a1a; color: #fff; }
         .lut-tag { background: #333; font-size: 9px; padding: 2px 4px; border-radius: 3px; font-weight: 900; }
 
-        /* LUT 调节浮层 (修复版：位于 Control 区域) */
+        /* LUT 调节浮层 (Control区) */
         #lut-adjust-overlay { 
             position: absolute; top: 0; bottom: 0; left: 0; right: 0; 
             background: #0a0a0a; z-index: 200; 
@@ -207,17 +213,22 @@
         .nav-item.active::after { content:''; position: absolute; bottom: 12px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 5px var(--accent); }
 
         #toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.85); border: 1px solid #333; color: #fff; padding: 12px 24px; border-radius: 30px; opacity: 0; pointer-events: none; transition: 0.3s; z-index: 999; font-weight: bold; font-size: 14px; letter-spacing: 1px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter:blur(5px); }
+        
+        /* 人像模式专用按钮 */
+        .slim-actions { display: flex; gap: 10px; padding: 10px 20px; }
+        .slim-btn { flex: 1; border: 1px solid #333; background: #111; color: #888; font-size: 10px; font-weight: 900; padding: 8px 0; border-radius: 4px; text-align: center; }
+        .slim-btn:active { background: #333; color: #fff; }
     </style>
 </head>
 <body>
 
-<div id="toast">IMAGE SAVED</div>
+<div id="toast">已保存到相册</div>
 <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="loadFile(this)">
 <input type="file" id="lutInput" accept=".cube" multiple style="display:none" onchange="loadLutFiles(this)">
 
 <script>
     (function(){
-        const man={name:"LUMINA PRO",short_name:"LUMINA",start_url:".",display:"standalone",background_color:"#000000",theme_color:"#000000",icons:[{src:"icon.png",sizes:"192x192",type:"image/png"}]};
+        const man={name:"LUMINA 专业版",short_name:"LUMINA",start_url:".",display:"standalone",background_color:"#000000",theme_color:"#000000",icons:[{src:"icon.png",sizes:"192x192",type:"image/png"}]};
         const blob=new Blob([JSON.stringify(man)],{type:'application/json'});
         const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(blob);document.head.appendChild(link);
         const ico=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#050505"/><circle cx="256" cy="256" r="180" stroke="#00e5ff" stroke-width="24" fill="none"/><path d="M256 120 L350 380 L162 380 Z" fill="#fff"/></svg>`;
@@ -228,13 +239,13 @@
 
 <div class="top-bar">
     <div class="top-btn" onclick="document.getElementById('fileInput').click()">📂</div>
-    <div style="font-weight:900; font-style:italic; font-size:18px; letter-spacing:1px; color:#fff;">LUMINA <span style="color:var(--accent)">PRO</span></div>
+    <div style="font-weight:900; font-style:italic; font-size:18px; letter-spacing:1px; color:#fff;">LUMINA <span style="color:var(--accent)">专业版</span></div>
     <div class="top-btn" onclick="exportImg()">💾</div>
 </div>
 
 <main class="stage-area" id="stage-area">
     <div id="empty-state" onclick="document.getElementById('fileInput').click()">
-        <div class="add-icon">＋</div><div style="font-size:12px;color:#666;font-weight:bold;letter-spacing:2px;">OPEN RAW</div>
+        <div class="add-icon">＋</div><div style="font-size:12px;color:#666;font-weight:bold;letter-spacing:2px;">打开照片</div>
     </div>
     
     <div id="canvas-wrap">
@@ -249,8 +260,17 @@
                 <div class="crop-handle ch-bl" data-d="sw"></div><div class="crop-handle ch-br" data-d="se"></div>
             </div>
             <div class="crop-btn-bar">
-                <div class="c-act-btn" onclick="toggleCrop(false)">CANCEL</div>
-                <div class="c-act-btn prim" onclick="applyCrop()">CROP</div>
+                <div class="c-act-btn" onclick="toggleCrop(false)">取消</div>
+                <div class="c-act-btn prim" onclick="applyCrop()">确认裁剪</div>
+            </div>
+        </div>
+        
+        <div id="warp-overlay">
+            <div class="warp-msg">请在画面上拖拽进行修整</div>
+            <div id="warp-guide"></div>
+            <div class="crop-btn-bar">
+                <div class="c-act-btn" onclick="toggleWarp(false)">取消</div>
+                <div class="c-act-btn prim" onclick="applyWarp()">应用</div>
             </div>
         </div>
     </div>
@@ -266,14 +286,14 @@
 <div class="controls">
     <div class="panel-container">
         <div id="lut-adjust-overlay">
-            <div class="la-title"><span>ADJUST INTENSITY</span><span id="la-val">5%</span></div>
+            <div class="la-title"><span>调节滤镜强度</span><span id="la-val">5%</span></div>
             <div class="la-slider-box" id="la-slider">
                 <div class="la-track"><div class="la-fill" id="la-fill"></div></div>
                 <div class="la-knob" id="la-knob"></div>
             </div>
             <div class="la-btns">
-                <div class="la-btn" onclick="closeLutAdj(false)">CANCEL</div>
-                <div class="la-btn confirm" onclick="closeLutAdj(true)">APPLY</div>
+                <div class="la-btn" onclick="closeLutAdj(false)">取消</div>
+                <div class="la-btn confirm" onclick="closeLutAdj(true)">应用</div>
             </div>
         </div>
 
@@ -292,10 +312,10 @@
 
         <div class="panel" id="p-col">
             <div class="col-tabs">
-                <div class="c-btn active" onclick="setWheelTab('lft')" id="t-lft">LIFT</div>
-                <div class="c-btn" onclick="setWheelTab('gam')" id="t-gam">GAMMA</div>
-                <div class="c-btn" onclick="setWheelTab('gan')" id="t-gan">GAIN</div>
-                <div class="c-btn" onclick="setWheelTab('off')" id="t-off">OFFSET</div>
+                <div class="c-btn active" onclick="setWheelTab('lft')" id="t-lft">暗部</div>
+                <div class="c-btn" onclick="setWheelTab('gam')" id="t-gam">灰度</div>
+                <div class="c-btn" onclick="setWheelTab('gan')" id="t-gan">亮部</div>
+                <div class="c-btn" onclick="setWheelTab('off')" id="t-off">偏移</div>
             </div>
             
             <div class="wheel-layout">
@@ -304,15 +324,19 @@
                     <div class="wheel-puck" id="wheel-puck"></div>
                 </div>
                 <div class="gears-box">
-                    <div class="gear-col"><div class="gear-lbl">R</div><div class="camera-gear" id="gw-r"><div class="gear-marker c-r" id="gm-r"></div></div></div>
-                    <div class="gear-col"><div class="gear-lbl">G</div><div class="camera-gear" id="gw-g"><div class="gear-marker c-g" id="gm-g"></div></div></div>
-                    <div class="gear-col"><div class="gear-lbl">B</div><div class="camera-gear" id="gw-b"><div class="gear-marker c-b" id="gm-b"></div></div></div>
-                    <div class="gear-col"><div class="gear-lbl">Y</div><div class="camera-gear" id="gw-y"><div class="gear-marker c-y" id="gm-y"></div></div></div>
+                    <div class="gear-col"><div class="gear-lbl">红</div><div class="camera-gear" id="gw-r"><div class="gear-marker c-r" id="gm-r"></div></div></div>
+                    <div class="gear-col"><div class="gear-lbl">绿</div><div class="camera-gear" id="gw-g"><div class="gear-marker c-g" id="gm-g"></div></div></div>
+                    <div class="gear-col"><div class="gear-lbl">蓝</div><div class="camera-gear" id="gw-b"><div class="gear-marker c-b" id="gm-b"></div></div></div>
+                    <div class="gear-col"><div class="gear-lbl">亮</div><div class="camera-gear" id="gw-y"><div class="gear-marker c-y" id="gm-y"></div></div></div>
                 </div>
             </div>
         </div>
 
         <div class="panel" id="p-por">
+            <div class="slim-actions">
+                <div class="slim-btn" onclick="toggleWarp(true, 'body')">手动瘦身 (液化)</div>
+                <div class="slim-btn" onclick="toggleWarp(true, 'face')">手动瘦脸 (液化)</div>
+            </div>
             <div class="param-bar" id="por-params"></div>
             <div class="dial-area" id="por-dial">
                 <div class="dial-val" id="por-val">0.0</div>
@@ -324,11 +348,11 @@
         <div class="panel" id="p-lut">
             <div class="lut-panel-wrap">
                 <div class="lut-actions">
-                    <div class="lut-btn" onclick="document.getElementById('lutInput').click()">+ LOAD .CUBE</div>
-                    <div class="lut-btn" onclick="generateLut()">EXPORT LUT</div>
+                    <div class="lut-btn" onclick="document.getElementById('lutInput').click()">+ 导入 .CUBE</div>
+                    <div class="lut-btn" onclick="generateLut()">导出 LUT</div>
                 </div>
                 <div class="lut-list-area" id="lut-list">
-                    <div style="padding:20px; text-align:center; color:#555; font-size:11px;">NO LUTS LOADED</div>
+                    <div style="padding:20px; text-align:center; color:#555; font-size:11px;">暂无滤镜</div>
                 </div>
             </div>
         </div>
@@ -354,7 +378,17 @@
 </div>
 
 <script id="vs" type="x-shader/x-vertex">
-    attribute vec2 p; attribute vec2 u; varying vec2 v; void main(){gl_Position=vec4(p,0,1);v=u;}
+    attribute vec2 p; attribute vec2 u; varying vec2 v; 
+    uniform float ana; // Anamorphic squeeze factor
+    void main(){
+        // Apply Anamorphic Squeeze (Slim Body Effect) in Vertex Shader
+        vec2 pos = p;
+        if(ana > 0.0) {
+            pos.x *= (1.0 - ana * 0.15); // Slight compression on X
+        }
+        gl_Position=vec4(pos,0,1);
+        v=u;
+    }
 </script>
 <script id="fs" type="x-shader/x-fragment">
     precision highp float; uniform sampler2D t; uniform sampler2D lutTex;
@@ -410,12 +444,12 @@
 </script>
 
 <script>
-    const presetsAI=[{id:'none',n:'原始',t:'RAW',v:{}},{id:'port',n:'人像',t:'SOFT',v:{sm:0.3,wh:0.2,con:1.05}},{id:'land',n:'风景',t:'VIVID',v:{sat:1.2,con:1.1,boost:0.1}},{id:'arch',n:'建筑',t:'HDR',v:{con:1.1,shadows:0.2,highlights:0.3}},{id:'food',n:'美食',t:'WARM',v:{sat:1.2,gam:{r:0.05,w:0}}},{id:'plant',n:'植物',t:'FRESH',v:{sat:1.1,lft:{g:0.05,w:0}}},{id:'ani',n:'动物',t:'SHARP',v:{con:1.15,exp:0.05,sharp:0.3}},{id:'mov',n:'电影',t:'TEAL',v:{con:1.1,lft:{b:-0.1,w:0},gan:{r:0.1,w:0}}}];
+    const presetsAI=[{id:'none',n:'原图',t:'RAW',v:{}},{id:'port',n:'人像',t:'SOFT',v:{sm:0.3,wh:0.2,con:1.05}},{id:'land',n:'风景',t:'VIVID',v:{sat:1.2,con:1.1,boost:0.1}},{id:'arch',n:'建筑',t:'HDR',v:{con:1.1,shadows:0.2,highlights:0.3}},{id:'food',n:'美食',t:'WARM',v:{sat:1.2,gam:{r:0.05,w:0}}},{id:'plant',n:'植物',t:'FRESH',v:{sat:1.1,lft:{g:0.05,w:0}}},{id:'ani',n:'动物',t:'SHARP',v:{con:1.15,exp:0.05,sharp:0.3}},{id:'mov',n:'电影',t:'TEAL',v:{con:1.1,lft:{b:-0.1,w:0},gan:{r:0.1,w:0}}}];
     const presetsFilm=[{id:'fuji',n:'富士',t:'NC',v:{sat:1.1,lft:{b:0.08,w:0}}},{id:'kd',n:'柯达',t:'GOLD',v:{sat:1.1,gam:{r:0.05,b:-0.05,w:0}}},{id:'leica',n:'徕卡',t:'BW',v:{sat:0,con:1.3,lft:{r:-0.05,g:-0.05,b:-0.05,w:0}}},{id:'pana',n:'松下',t:'LOG',v:{con:0.9,sat:0.9}},{id:'sony',n:'索尼',t:'STD',v:{con:1.2}},{id:'canon',n:'佳能',t:'POR',v:{ros:0.1,sat:1.05}}];
     const adjParams = [{k:'exp',n:'曝光',min:-2,max:2,s:0.01},{k:'brt',n:'亮度',min:-0.5,max:0.5,s:0.01},{k:'con',n:'对比度',min:0,max:2,s:0.01},{k:'sat',n:'饱和度',min:0,max:2,s:0.01},{k:'boost',n:'色彩',min:0,max:1,s:0.01},{k:'sharp',n:'锐化',min:0,max:1,s:0.01},{k:'shadows',n:'阴影',min:-1,max:1,s:0.01},{k:'highlights',n:'高光',min:-1,max:1,s:0.01},{k:'hue',n:'色相',min:-0.5,max:0.5,s:0.01}];
-    const porParams = [{k:'sm',n:'磨皮',min:0,max:1,s:0.01},{k:'wh',n:'美白',min:0,max:1,s:0.01},{k:'ros',n:'红润',min:0,max:1,s:0.01},{k:'nz',n:'降噪',min:0,max:1,s:0.01}];
+    const porParams = [{k:'sm',n:'磨皮',min:0,max:1,s:0.01},{k:'wh',n:'美白',min:0,max:1,s:0.01},{k:'ros',n:'红润',min:0,max:1,s:0.01},{k:'nz',n:'降噪',min:0,max:1,s:0.01},{k:'ana',n:'整体瘦身',min:0,max:1,s:0.01}];
 
-    const def={brt:0,exp:0,con:1,sat:1,hue:0,boost:0,shadows:0,highlights:0,sm:0,wh:0,ros:0,nz:0,sharp:0,cmp:0,splitPos:0.5,lft:{r:0,g:0,b:0,w:0},gam:{r:0,g:0,b:0,w:0},gan:{r:0,g:0,b:0,w:0},off:{r:0,g:0,b:0,w:0}};
+    const def={brt:0,exp:0,con:1,sat:1,hue:0,boost:0,shadows:0,highlights:0,sm:0,wh:0,ros:0,nz:0,sharp:0,cmp:0,splitPos:0.5,ana:0,lft:{r:0,g:0,b:0,w:0},gam:{r:0,g:0,b:0,w:0},gan:{r:0,g:0,b:0,w:0},off:{r:0,g:0,b:0,w:0}};
     let st=JSON.parse(JSON.stringify(def));
     let gl, prog, tex, cvs=document.getElementById('gl');
     let lutTex; 
@@ -425,12 +459,17 @@
     let actWheel='lft'; let actParam={k:'exp',def:0};
     let state={zoom:1,panX:0,panY:0,lastDist:0,isDragging:false,startX:0,startY:0,mute:false};
     let audCtx=null;
+    
+    // Mesh Deformation State
+    const MESH_GRID = 40; // 40x40 grid
+    let meshData = { p: null, u: null, count: 0 };
+    let warpState = { active: false, radius: 0.15, mode: 'body' }; // Radius in UV space
 
     window.onload=()=>{
         try{gl=cvs.getContext('webgl',{preserveDrawingBuffer:true});}catch(e){}
         if(!gl)return alert("WebGL Error");
         initGL(); renderPresets(); renderParamBars();
-        initGestures(); initWheelUI(); initCompareDrag(); initDial(); initCropDrag(); initLutSlider();
+        initGestures(); initWheelUI(); initCompareDrag(); initDial(); initCropDrag(); initLutSlider(); initWarp();
         
         lutTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, lutTex);
@@ -469,24 +508,89 @@
             gl.bindTexture(gl.TEXTURE_2D,tex); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,c);
             document.getElementById('empty-state').style.display='none'; document.getElementById('float-btns').style.display='flex';
             state.zoom=1; state.panX=0; state.panY=0; updateTransform(); resetAll(true);
+            
+            // Reset Mesh
+            createGridMesh();
+            
             requestAnimationFrame(()=>{gl.viewport(0,0,w,h);draw();});
             el.value = '';
         };
         img.src=URL.createObjectURL(f);
     }
 
+    // --- Mesh System ---
+    function createGridMesh() {
+        const cols = MESH_GRID;
+        const rows = MESH_GRID;
+        const numVerts = cols * rows * 6; 
+        meshData.p = new Float32Array(numVerts * 2);
+        meshData.u = new Float32Array(numVerts * 2);
+        meshData.count = numVerts;
+        
+        let i = 0;
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const x0 = (x / cols) * 2 - 1;
+                const x1 = ((x+1) / cols) * 2 - 1;
+                const y0 = (y / rows) * 2 - 1;
+                const y1 = ((y+1) / rows) * 2 - 1;
+                
+                // 【关键修复】反转 UV 的 V 坐标，解决图片倒置问题
+                const u0 = x / cols;
+                const u1 = (x+1) / cols;
+                const v0 = 1.0 - (y / rows);       // Fixed: Invert V
+                const v1 = 1.0 - ((y+1) / rows);   // Fixed: Invert V
+                
+                // Tri 1
+                meshData.p[i] = x0; meshData.p[i+1] = y0; meshData.u[i] = u0; meshData.u[i+1] = v0; i+=2;
+                meshData.p[i] = x1; meshData.p[i+1] = y0; meshData.u[i] = u1; meshData.u[i+1] = v0; i+=2;
+                meshData.p[i] = x0; meshData.p[i+1] = y1; meshData.u[i] = u0; meshData.u[i+1] = v1; i+=2;
+                
+                // Tri 2
+                meshData.p[i] = x0; meshData.p[i+1] = y1; meshData.u[i] = u0; meshData.u[i+1] = v1; i+=2;
+                meshData.p[i] = x1; meshData.p[i+1] = y0; meshData.u[i] = u1; meshData.u[i+1] = v0; i+=2;
+                meshData.p[i] = x1; meshData.p[i+1] = y1; meshData.u[i] = u1; meshData.u[i+1] = v1; i+=2;
+            }
+        }
+        uploadMesh();
+    }
+    
+    function uploadMesh() {
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, meshData.p, gl.DYNAMIC_DRAW);
+        const p = gl.getAttribLocation(prog, "p");
+        gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(p);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, meshData.u, gl.STATIC_DRAW);
+        const u = gl.getAttribLocation(prog, "u");
+        gl.vertexAttribPointer(u, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(u);
+    }
+
+    function updateMeshP() {
+        const pLoc = gl.getAttribLocation(prog, "p");
+        gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+        gl.bufferData(gl.ARRAY_BUFFER, meshData.p, gl.DYNAMIC_DRAW);
+        gl.vertexAttribPointer(pLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+
     function initGL(){
         const vs=gl.createShader(gl.VERTEX_SHADER);gl.shaderSource(vs,document.getElementById('vs').text);gl.compileShader(vs);
         const fs=gl.createShader(gl.FRAGMENT_SHADER);gl.shaderSource(fs,document.getElementById('fs').text);gl.compileShader(fs);
         prog=gl.createProgram();gl.attachShader(prog,vs);gl.attachShader(prog,fs);gl.linkProgram(prog);gl.useProgram(prog);
-        gl.bindBuffer(gl.ARRAY_BUFFER,gl.createBuffer());gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,0,1,1,-1,1,1,-1,1,0,0,-1,1,0,0,1,-1,1,1,1,1,1,0]),gl.STATIC_DRAW);
+        createGridMesh(); 
     }
+    
     function draw(){
         if(!tex)return; gl.useProgram(prog); 
         const f=(k,v)=>gl.uniform1f(gl.getUniformLocation(prog,k),v);
         f("brt",st.brt);f("exp",st.exp);f("con",st.con);f("sat",st.sat);f("hue",st.hue);f("boost",st.boost);
         f("shadows",st.shadows);f("highlights",st.highlights);f("sharp",st.sharp);
         f("sm",st.sm);f("wh",st.wh);f("ros",st.ros);f("nz",st.nz);f("cmp",st.cmp);f("splitPos",st.splitPos);
+        f("ana", st.ana); 
+        
         gl.uniform2f(gl.getUniformLocation(prog,"res"),cvs.width,cvs.height);
         const v4=(k,v)=>gl.uniform4f(gl.getUniformLocation(prog,k),v.r,v.g,v.b,v.w);
         v4("lft",st.lft);v4("gam",st.gam);v4("gan",st.gan);v4("off",st.off);
@@ -504,9 +608,94 @@
             gl.uniform1f(gl.getUniformLocation(prog, "hasLut"), 0.0);
         }
 
-        const p=gl.getAttribLocation(prog,"p");gl.enableVertexAttribArray(p);gl.vertexAttribPointer(p,2,gl.FLOAT,false,16,0);
-        const u=gl.getAttribLocation(prog,"u");gl.enableVertexAttribArray(u);gl.vertexAttribPointer(u,2,gl.FLOAT,false,16,8);
-        gl.drawArrays(gl.TRIANGLES,0,6);
+        gl.drawArrays(gl.TRIANGLES, 0, meshData.count);
+    }
+
+    // --- Warp / Liquify Logic ---
+    function initWarp() {
+        const area = document.getElementById('warp-overlay');
+        let isWarping = false;
+        let lx=0, ly=0;
+        
+        area.addEventListener('touchstart', e=>{
+            isWarping = true;
+            e.stopPropagation(); e.preventDefault();
+            const t = e.touches[0];
+            const r = area.getBoundingClientRect();
+            lx = ((t.clientX - r.left) / r.width) * 2 - 1;
+            ly = -(((t.clientY - r.top) / r.height) * 2 - 1); // Normal Y for logic
+            
+            const g = document.getElementById('warp-guide');
+            g.style.left = t.clientX + 'px';
+            g.style.top = t.clientY + 'px';
+            g.style.display = 'block';
+        });
+        
+        area.addEventListener('touchmove', e=>{
+            if(!isWarping) return;
+            e.stopPropagation(); e.preventDefault();
+            const t = e.touches[0];
+            const r = area.getBoundingClientRect();
+            
+            const cx = ((t.clientX - r.left) / r.width) * 2 - 1;
+            const cy = -(((t.clientY - r.top) / r.height) * 2 - 1);
+            
+            const dx = cx - lx;
+            const dy = cy - ly;
+            
+            const radius = warpState.radius; 
+            const str = 0.5;
+            
+            let changed = false;
+            for(let i=0; i<meshData.p.length; i+=2) {
+                const vx = meshData.p[i];
+                const vy = meshData.p[i+1]; // Mesh Y is also -1 to 1
+                const dist = Math.sqrt((vx-cx)*(vx-cx) + (vy-cy)*(vy-cy));
+                
+                if(dist < radius) {
+                    const falloff = Math.pow(1.0 - dist/radius, 2);
+                    meshData.p[i] += dx * falloff * str;
+                    meshData.p[i+1] += dy * falloff * str;
+                    changed = true;
+                }
+            }
+            
+            if(changed) {
+                updateMeshP();
+                draw();
+            }
+            
+            lx = cx; ly = cy;
+            
+            const g = document.getElementById('warp-guide');
+            g.style.left = t.clientX + 'px';
+            g.style.top = t.clientY + 'px';
+        });
+        
+        area.addEventListener('touchend', ()=>{
+            isWarping = false;
+            document.getElementById('warp-guide').style.display = 'none';
+        });
+    }
+
+    window.toggleWarp = (active, mode) => {
+        const o = document.getElementById('warp-overlay');
+        const guide = document.getElementById('warp-guide');
+        if(active) {
+            warpState.active = true;
+            warpState.mode = mode;
+            warpState.radius = mode === 'body' ? 0.3 : 0.12; 
+            o.style.display = 'block';
+            guide.style.width = guide.style.height = (warpState.radius * cvs.offsetWidth) + 'px'; 
+            document.querySelector('.warp-msg').innerText = mode==='body' ? "拖拽腰部/腿部进行瘦身" : "拖拽脸部边缘进行修整";
+        } else {
+            warpState.active = false;
+            o.style.display = 'none';
+        }
+    }
+    
+    window.applyWarp = () => {
+        toggleWarp(false);
     }
 
     // --- LUT System ---
@@ -521,20 +710,14 @@
                 const content = e.target.result;
                 const rawData = parseCube(content);
                 if(rawData) {
-                    // *** 关键修复：重排 .cube 数据到 WebGL 纹理条带 ***
                     const size = 33;
                     const reordered = new Uint8Array(size * size * size * 3);
                     let texIdx = 0;
-                    // Texture Order: Row (y/g) -> Slice (b) -> Col (r)
-                    for (let y = 0; y < size; y++) {        // Texture height (G)
-                        for (let x = 0; x < size * size; x++) { // Texture width
-                            // Calculate B and R from x
+                    for (let y = 0; y < size; y++) {        
+                        for (let x = 0; x < size * size; x++) { 
                             const b = Math.floor(x / size);
                             const r = x % size;
-                            
-                            // .cube data is usually B -> G -> R, index = (b*33*33 + g*33 + r)*3
                             const cubeIdx = (b * size * size + y * size + r) * 3;
-                            
                             reordered[texIdx++] = rawData[cubeIdx];
                             reordered[texIdx++] = rawData[cubeIdx+1];
                             reordered[texIdx++] = rawData[cubeIdx+2];
@@ -550,7 +733,6 @@
                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 33*33, 33, 0, gl.RGB, gl.UNSIGNED_BYTE, reordered);
                     
                     const id = Date.now() + Math.random();
-                    // *** 修复：默认浓度设为 0.05 ***
                     const lutObj = { id: id, name: file.name.replace('.cube',''), tex: t, str: 0.05 };
                     loadedLuts.push(lutObj);
                     
@@ -584,7 +766,6 @@
         return new Uint8Array(data);
     }
 
-    // LUT Overlay
     let sliderState = { isDrag: false };
     function initLutSlider() {
         const box = document.getElementById('la-slider');
@@ -612,7 +793,7 @@
 
     function openLutAdjust(lut) {
         pendingLut = { ...lut }; 
-        document.getElementById('lut-adjust-overlay').style.display = 'flex'; // Use flex for centering
+        document.getElementById('lut-adjust-overlay').style.display = 'flex'; 
         const pct = pendingLut.str;
         document.getElementById('la-knob').style.left = (pct*100)+'%';
         document.getElementById('la-fill').style.width = (pct*100)+'%';
@@ -627,7 +808,6 @@
             const idx = loadedLuts.findIndex(l => l.id === pendingLut.id);
             if(idx !== -1) loadedLuts[idx].str = pendingLut.str;
             activeLut = loadedLuts[idx];
-            
             document.querySelectorAll('.lut-item').forEach(i=>i.classList.remove('active'));
             if(activeLut) document.getElementById('lut-item-'+activeLut.id).classList.add('active');
             tick();
@@ -669,7 +849,8 @@
         const oldV = gl.getParameter(gl.VIEWPORT);
         gl.bindTexture(gl.TEXTURE_2D, idTex);
         gl.viewport(0, 0, width, height);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        
+        gl.drawArrays(gl.TRIANGLES, 0, meshData.count);
         
         const result = new Uint8Array(width * height * 4);
         gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, result);
@@ -701,17 +882,17 @@
         a.download = "LUMINA_Looks.cube";
         a.click();
         const t=document.getElementById('toast');
-        t.innerText = "LUT EXPORTED";
+        t.innerText = "LUT 已导出";
         t.style.opacity=1;setTimeout(()=>t.style.opacity=0,2000);
         tick();
     }
 
-    // --- Rest of UI Logic ---
+    // --- UI Logic ---
     function renderPresets(){
         const con=document.getElementById('preset-list');
-        let h='<div class="grp-label">AI SCENE</div>';
+        let h='<div class="grp-label">智能场景</div>';
         presetsAI.forEach(p=>{h+=`<div class="p-chip" onclick="applyPre(this,'${p.id}','ai')"><span class="p-name">${p.n}</span><span class="p-tag">${p.t}</span></div>`;});
-        h+='<div class="grp-label" style="margin-left:15px">FILM SIM</div>';
+        h+='<div class="grp-label" style="margin-left:15px">胶片模拟</div>';
         presetsFilm.forEach(p=>{h+=`<div class="p-chip" onclick="applyPre(this,'${p.id}','film')"><span class="p-name">${p.n}</span><span class="p-tag">${p.t}</span></div>`;});
         con.innerHTML=h;
     }
@@ -886,6 +1067,9 @@
             document.querySelectorAll('.p-chip').forEach(c=>c.classList.remove('active'));
             activeLut = null; 
             document.querySelectorAll('.lut-item').forEach(i=>i.classList.remove('active'));
+            // Reset Mesh
+            createGridMesh();
+            
             nav('adj', document.querySelectorAll('.nav-item')[1]);
             updWheelVis(); draw(); tick();
         }
@@ -894,11 +1078,14 @@
     function initGestures(){
         const area=document.getElementById('stage-area');
         area.addEventListener('touchstart',e=>{
+            // Disable pan/zoom if warping
+            if(warpState.active) return;
             if(e.touches.length===1&&!st.cmp){state.isDragging=true;state.startX=e.touches[0].clientX-state.panX;state.startY=e.touches[0].clientY-state.panY;}
             else if(e.touches.length===2){state.isDragging=false;state.lastDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);}
         },{passive:false});
         area.addEventListener('touchmove',e=>{
             if(!tex)return;e.preventDefault();
+            if(warpState.active) return;
             if(e.touches.length===1&&state.isDragging&&!st.cmp){state.panX=e.touches[0].clientX-state.startX;state.panY=e.touches[0].clientY-state.startY;updateTransform();}
             else if(e.touches.length===2){const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(dist>0&&state.lastDist>0){state.zoom*=dist/state.lastDist;state.zoom=Math.max(0.5,Math.min(5,state.zoom));updateTransform();}state.lastDist=dist;}
         },{passive:false});
