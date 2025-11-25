@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LUMINA PRO v4.4</title>
+    <title>LUMINA PRO v4.5</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
@@ -40,10 +40,8 @@
         #empty-state:active { opacity: 1; transform: scale(0.98); }
         .add-icon { font-size: 32px; color: #666; margin-bottom: 15px; width: 70px; height: 70px; border: 2px dashed #444; border-radius: 50%; display: flex; justify-content: center; align-items: center; }
 
-        /* --- 裁剪层 (修复版) --- */
-        /* 1. 移除背景色，确保中间透明 */
+        /* --- 裁剪层 --- */
         .crop-layer { position: absolute; inset: 0; z-index: 80; display: none; background: transparent; }
-        /* 2. 利用超大 box-shadow 实现外部变黑，内部透明 */
         .crop-box { 
             position: absolute; border: 1px solid rgba(255,255,255,0.8); 
             box-shadow: 0 0 0 9999px rgba(0,0,0,0.85); 
@@ -74,7 +72,7 @@
         .split-line { position: absolute; top: 0; bottom: 0; width: 1px; background: #fff; left: 50%; box-shadow: 0 0 15px rgba(0,229,255,0.8); pointer-events: auto; }
         .split-handle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 36px; height: 36px; background: rgba(0,0,0,0.6); backdrop-filter:blur(4px); border: 1px solid #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 14px; color:#fff; }
 
-        /* --- 主控制面板 (极黑玻璃) --- */
+        /* --- 主控制面板 --- */
         .controls { 
             background: rgba(10,10,10,0.98); backdrop-filter: blur(25px);
             border-top-left-radius: 32px; border-top-right-radius: 32px;
@@ -104,7 +102,9 @@
         .param-bar { 
             display: flex; overflow-x: auto; gap: 24px; padding: 0 25px; 
             border-bottom: 1px solid #222; height: 45px; align-items: center; flex-shrink: 0;
-            -webkit-overflow-scrolling: touch; mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-overflow-scrolling: touch; 
+            mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
         }
         .param-bar::-webkit-scrollbar { display: none; }
         .param-item { font-size: 13px; color: #555; white-space: nowrap; font-weight: 600; transition: 0.2s; position: relative; letter-spacing:0.5px; }
@@ -116,6 +116,7 @@
             width: 100%; height: 50px; position: relative; 
             background: repeating-linear-gradient(90deg, transparent, transparent 9px, #333 9px, #333 10px); 
             mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at center, black 0%, transparent 80%);
         }
         .dial-cursor { position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); width: 2px; height: 30px; background: var(--accent); box-shadow: 0 0 15px var(--accent); z-index: 5; border-radius:2px; }
 
@@ -134,7 +135,7 @@
             display: flex; justify-content: center; align-items: center; overflow:hidden; 
             transition: background 0.1s;
         }
-        .wheel-grad { width: 100%; height: 100%; background: conic-gradient(from 0deg, red, magenta, blue, cyan, lime, yellow, red); opacity: 0.6; border-radius: 50%; filter: blur(2px); mix-blend-mode: screen; }
+        .wheel-grad { width: 100%; height: 100%; background: conic-gradient(from 0deg, red, magenta, blue, cyan, lime, yellow, red); opacity: 0.6; border-radius: 50%; filter: blur(2px); mix-blend-mode: screen; pointer-events: none; }
         .wheel-puck { 
             width: 14px; height: 14px; border: 2px solid #fff; background: transparent;
             border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); 
@@ -142,7 +143,7 @@
             transition: all 0.1s;
         }
         
-        /* 拟真齿轮 (Camera Gear) */
+        /* 拟真齿轮 */
         .gears-box { flex: 1; display: flex; justify-content: space-between; align-items: center; height: 100%; padding-left: 10px; }
         .gear-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center; gap:8px; }
         .gear-lbl { font-size: 9px; font-weight: 900; color: #444; font-family: sans-serif; }
@@ -305,7 +306,7 @@
     attribute vec2 p; attribute vec2 u; varying vec2 v; void main(){gl_Position=vec4(p,0,1);v=u;}
 </script>
 <script id="fs" type="x-shader/x-fragment">
-    precision mediump float; uniform sampler2D t; varying vec2 v; uniform vec2 res;
+    precision highp float; uniform sampler2D t; varying vec2 v; uniform vec2 res;
     uniform float brt,exp,con,sat,hue,boost,shadows,highlights,sm,wh,ros,nz,sharp;
     uniform float cmp, splitPos; 
     uniform vec4 lft,gam,gan,off;
@@ -367,7 +368,7 @@
     }
 
     function loadFile(el){
-        if(!el.files.length)return; const img=new Image();
+        if(!el.files.length)return; const f=el.files[0]; const img=new Image();
         img.onload=()=>{
             let w=img.width, h=img.height; const max=4096; if(w>max||h>max){const s=Math.min(max/w,max/h);w=Math.floor(w*s);h=Math.floor(h*s);}
             cvs.width=w; cvs.height=h;
@@ -382,8 +383,9 @@
             document.getElementById('empty-state').style.display='none'; document.getElementById('float-btns').style.display='flex';
             state.zoom=1; state.panX=0; state.panY=0; updateTransform(); resetAll(true);
             requestAnimationFrame(()=>{gl.viewport(0,0,w,h);draw();});
+            el.value = ''; // 允许重复打开
         };
-        img.src=URL.createObjectURL(el.files[0]);
+        img.src=URL.createObjectURL(f);
     }
 
     function initGL(){
@@ -412,11 +414,11 @@
         presetsAI.forEach(p=>{h+=`<div class="p-chip" onclick="applyPre(this,'${p.id}','ai')"><span class="p-name">${p.n}</span><span class="p-tag">${p.t}</span></div>`;});
         h+='<div class="grp-label" style="margin-left:15px">FILM SIM</div>';
         presetsFilm.forEach(p=>{h+=`<div class="p-chip" onclick="applyPre(this,'${p.id}','film')"><span class="p-name">${p.n}</span><span class="p-tag">${p.t}</span></div>`;});
-        con.innerHTML=h; document.querySelector('.p-chip').classList.add('active');
+        con.innerHTML=h;
     }
     function renderParamBars(){
         const mk=(arr,id)=>{document.getElementById(id).innerHTML=arr.map((p,i)=>`<div class="param-item ${i===0?'active':''}" onclick="selParam('${p.k}',this,'${id}')">${p.n.toUpperCase()}</div>`).join('');};
-        mk(adjParams,'adj-params'); mk(porParams,'por-params'); selParam('exp',document.querySelector('#adj-params .param-item'),'adj-params');
+        mk(adjParams,'adj-params'); mk(porParams,'por-params');
     }
 
     function initDial(){
@@ -425,7 +427,12 @@
             const update=(dx)=>{
                 const cfg=[...adjParams,...porParams].find(x=>x.k===actParam.k); if(!cfg)return;
                 let v=sv+dx*cfg.s*0.2; v=Math.max(cfg.min,Math.min(cfg.max,v)); st[actParam.k]=v;
-                el.querySelector('.dial-val').innerText=(v>0?'+':'')+v.toFixed(2);
+                
+                // Update UI Display
+                const dVal = (v>0?'+':'')+v.toFixed(2);
+                if(document.getElementById('dial-val')) document.getElementById('dial-val').innerText=dVal;
+                if(document.getElementById('por-val')) document.getElementById('por-val').innerText=dVal;
+                
                 el.querySelector('.dial-track').style.backgroundPositionX=(dx*3)+'px';
                 draw(); if(Math.abs(dx-lx)>5){ tick(); lx=dx; }
             };
@@ -435,14 +442,19 @@
     }
     window.selParam=(k,el,barId)=>{
         document.getElementById(barId).querySelectorAll('.param-item').forEach(e=>e.classList.remove('active')); el.classList.add('active');
-        actParam={k:k}; const val=st[k]||0; const disp=barId==='adj-params'?'dial-val':'por-val';
-        document.getElementById(disp).innerText=(val>0?'+':'')+val.toFixed(2); tick();
+        actParam={k:k}; 
+        const val=st[k]||0; const dVal=(val>0?'+':'')+val.toFixed(2);
+        if(document.getElementById('dial-val')) document.getElementById('dial-val').innerText=dVal;
+        if(document.getElementById('por-val')) document.getElementById('por-val').innerText=dVal;
+        
+        // Reset Dial visual to 0 (approximate, since track is infinite pattern)
+        document.querySelectorAll('.dial-track').forEach(t => t.style.backgroundPositionX = '0px');
+        tick();
     };
 
-    // --- 齿轮色轮 (修复版) ---
+    // --- 齿轮色轮 ---
     function initWheelUI(){
         const zone=document.getElementById('wheel-zone');
-        // Puck Control
         const hW=(e)=>{
             e.preventDefault(); e.stopPropagation();
             const rect=zone.getBoundingClientRect(); const t=e.touches[0]||e;
@@ -459,31 +471,19 @@
         zone.addEventListener('touchstart',hW,{passive:false}); zone.addEventListener('touchmove',hW,{passive:false});
         zone.addEventListener('dblclick',()=>{if(st[actWheel]){st[actWheel]={r:0,g:0,b:0,w:0};updWheelVis();draw();tick();}});
 
-        // Gear Controls (RGBY)
         ['r','g','b','y'].forEach(ch=>{
             const gear=document.getElementById('gw-'+ch); let sY=0, sV=0, ly=0;
             const targetKey=ch==='y'?'w':ch;
-            
             gear.addEventListener('touchstart',e=>{ sY=e.touches[0].clientY; sV=st[actWheel][targetKey]; ly=0; e.stopPropagation(); },{passive:false});
             gear.addEventListener('touchmove',e=>{
                 e.preventDefault(); e.stopPropagation();
                 const dy=sY-e.touches[0].clientY; 
                 let val=sV+dy*0.005; val=Math.max(-0.5,Math.min(0.5,val));
                 st[actWheel][targetKey]=val;
-                
-                // Y-Linkage Visual Effect (深度联动)
                 if(ch==='y'){
-                    // 1. 改变色盘背景明暗
                     const lum = 120 - val * 100;
                     document.getElementById('wheel-box').style.background = `radial-gradient(circle, #222, #000 ${lum}%)`;
-                    // 2. 改变Puck大小和辉光
-                    const p = document.getElementById('wheel-puck');
-                    p.style.width = (14 + val*14) + 'px';
-                    p.style.height = (14 + val*14) + 'px';
-                    p.style.boxShadow = `0 0 ${10+Math.abs(val)*40}px rgba(255,255,255,${0.3+Math.abs(val)})`;
-                    p.style.borderWidth = (2 + val*2) + 'px';
                 }
-
                 updWheelVis(); draw();
                 if(Math.abs(dy-ly)>8){ tick(); ly=dy; }
             },{passive:false});
@@ -494,20 +494,10 @@
         if(!st[actWheel])return;
         const x=(st[actWheel].r/0.25)*50; const y=-(st[actWheel].b/0.25)*50;
         document.getElementById('wheel-puck').style.transform=`translate(calc(-50% + ${x}%), calc(-50% + ${y}%))`;
-        
         const map={r:'r',g:'g',b:'b',y:'w'};
         for(let k in map){
             const val=st[actWheel][map[k]]; 
             document.getElementById('gm-'+k).style.transform=`rotate(${val*300}deg) translateX(-17px)`;
-            
-            // Y联动: 初始化时同步视觉状态
-            if(k==='y'){
-                 const p = document.getElementById('wheel-puck');
-                 p.style.width = (14 + val*14) + 'px';
-                 p.style.height = (14 + val*14) + 'px';
-                 p.style.boxShadow = `0 0 ${10+Math.abs(val)*40}px rgba(255,255,255,${0.3+Math.abs(val)})`;
-                 document.getElementById('wheel-box').style.background = `radial-gradient(circle, #222, #000 ${120-val*100}%)`;
-            }
         }
     }
     window.setWheelTab=(w)=>{
@@ -515,8 +505,7 @@
         document.getElementById('t-'+w).classList.add('active'); updWheelVis(); tick();
     };
 
-    // Crop & Gestures
-    let cropState={rot:0};
+    // Crop Fix
     function initCropDrag(){
         const box=document.getElementById('crop-box'); let s=null;
         box.addEventListener('touchstart',e=>{
@@ -556,33 +545,63 @@
         const cx=b.offsetLeft*scaleX; const cy=b.offsetTop*scaleY; const cw=b.offsetWidth*scaleX; const ch=b.offsetHeight*scaleY;
         const tc=document.createElement('canvas'); tc.width=cw; tc.height=ch;
         tc.getContext('2d').drawImage(cvs,cx,cy,cw,ch,0,0,cw,ch);
-        const newImg=new Image();
-        newImg.onload=()=>{
-             cvs.width=cw; cvs.height=ch;
-             const area=document.getElementById('stage-area');
-             const ratio=Math.min((area.clientWidth-30)/cw, (area.clientHeight-30)/ch);
-             wrap.style.width=(cw*ratio)+'px'; wrap.style.height=(ch*ratio)+'px';
-             gl.bindTexture(gl.TEXTURE_2D,tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,tc);
-             gl.viewport(0,0,cw,ch); toggleCrop(false); st.cmp=0; draw(); tick();
-        }; newImg.src=tc.toDataURL();
+        cvs.width=cw; cvs.height=ch;
+        const area=document.getElementById('stage-area');
+        const ratio=Math.min((area.clientWidth-30)/cw, (area.clientHeight-30)/ch);
+        wrap.style.width=(cw*ratio)+'px'; wrap.style.height=(ch*ratio)+'px';
+        gl.bindTexture(gl.TEXTURE_2D,tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,tc);
+        const oldMute=state.mute; resetAll(false); state.mute=oldMute;
+        gl.viewport(0,0,cw,ch); toggleCrop(false); st.cmp=0; draw(); tick();
     }
 
+    // Logic Fixes
     window.applyPre=(el,id,type)=>{
         document.querySelectorAll('.p-chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');
-        const p=(type==='ai'?presetsAI:presetsFilm).find(x=>x.id===id);
         st=JSON.parse(JSON.stringify(def));
-        for(let k in p.v){if(typeof p.v[k]==='object'&&!Array.isArray(p.v[k]))st[k]={...st[k],...p.v[k]};else st[k]=p.v[k];}
-        selParam(actParam.k,document.querySelector(`.param-item[onclick*="'${actParam.k}'"]`),'adj-params');
-        updWheelVis();draw();tick();
+        const p=(type==='ai'?presetsAI:presetsFilm).find(x=>x.id===id);
+        if(p) for(let k in p.v){if(typeof p.v[k]==='object'&&!Array.isArray(p.v[k]))st[k]={...st[k],...p.v[k]};else st[k]=p.v[k];}
+        
+        // Refresh UI for active param
+        const val = st[actParam.k] || 0;
+        const dVal = (val>0?'+':'')+val.toFixed(2);
+        if(document.getElementById('dial-val')) document.getElementById('dial-val').innerText=dVal;
+        if(document.getElementById('por-val')) document.getElementById('por-val').innerText=dVal;
+        
+        updWheelVis(); draw(); tick();
     };
+
     window.nav=(id,el)=>{
         document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); document.getElementById('p-'+id).classList.add('active');
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); el.classList.add('active');
-        if(id==='col')setTimeout(updWheelVis,50); tick();
+        
+        // Fix for crosstalk: Select first param of new tab
+        if(id === 'adj') {
+            const first = document.querySelector('#adj-params .param-item');
+            if(first) selParam('exp', first, 'adj-params');
+        } else if (id === 'por') {
+            const first = document.querySelector('#por-params .param-item');
+            if(first) selParam('sm', first, 'por-params');
+        } else if(id === 'col') {
+            setTimeout(updWheelVis,50);
+        }
+        tick();
     };
+
     window.resetAll=(isInit=false)=>{
-        if(!isInit){st=JSON.parse(JSON.stringify(def));updWheelVis();draw();document.querySelectorAll('.p-chip').forEach(c=>c.classList.remove('active'));selParam('exp',document.querySelector('#adj-params .param-item'),'adj-params');tick();}
+        st=JSON.parse(JSON.stringify(def));
+        if(!isInit){
+            // Reset Dial UI
+            document.querySelectorAll('.dial-track').forEach(d => d.style.backgroundPositionX = '0px');
+            document.querySelectorAll('.dial-val').forEach(d => d.innerText = '0.00');
+            document.querySelectorAll('.p-chip').forEach(c=>c.classList.remove('active'));
+            
+            // Reset to Adj Tab -> Exp
+            nav('adj', document.querySelectorAll('.nav-item')[1]);
+            
+            updWheelVis(); draw(); tick();
+        }
     };
+
     function initGestures(){
         const area=document.getElementById('stage-area');
         area.addEventListener('touchstart',e=>{
