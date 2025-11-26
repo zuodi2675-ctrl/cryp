@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LUMINA 专业版 v1.5</title>
+    <title>LUMINA 专业版 v1.0</title>
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
@@ -109,7 +109,6 @@
         .p-name { color: #ddd; font-size: 11px; font-weight: bold; margin-bottom: 4px; z-index: 2; letter-spacing:0.5px; }
         .p-tag { font-size: 9px; color: #666; background: #080808; padding: 2px 5px; border-radius: 4px; z-index: 2; font-weight:900; }
         
-        /* 修复文字倒置：改为竖排文字，去除旋转 */
         .grp-label { 
             writing-mode: vertical-rl; 
             text-orientation: mixed; 
@@ -118,7 +117,6 @@
             font-weight: 900; 
             margin: 0 4px; 
             letter-spacing: 2px; 
-            /* transform: rotate(180deg); <--- 已移除，修复倒置 */
         }
 
         /* 2. 光效调节 */
@@ -395,11 +393,11 @@
 
 <script id="vs" type="x-shader/x-vertex">
     attribute vec2 p; attribute vec2 u; varying vec2 v; 
-    uniform float ana; // Anamorphic squeeze factor
+    uniform float ana; 
     void main(){
         vec2 pos = p;
         if(ana > 0.0) {
-            pos.x *= (1.0 - ana * 0.15); // Slight compression on X
+            pos.x *= (1.0 - ana * 0.15); 
         }
         gl_Position=vec4(pos,0,1);
         v=u;
@@ -493,6 +491,34 @@
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, 1, 1, 0, gl.RGB, gl.UNSIGNED_BYTE, new Uint8Array([0,0,0]));
     }
 
+    // --- Added: Preset Application Function ---
+    window.applyPre = (el, id, type) => {
+        document.querySelectorAll('.p-chip').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        let tempDef = JSON.parse(JSON.stringify(def));
+        Object.assign(st, tempDef);
+        const source = type === 'ai' ? presetsAI : presetsFilm;
+        const p = source.find(x => x.id === id);
+        if (p && p.v) {
+            for(let k in p.v) {
+                if(typeof p.v[k] === 'object' && p.v[k] !== null && !Array.isArray(p.v[k])) {
+                    Object.assign(st[k], p.v[k]);
+                } else {
+                    st[k] = p.v[k];
+                }
+            }
+        }
+        if (actParam && st[actParam.k] !== undefined) {
+             const val = st[actParam.k];
+             const dVal = (val > 0 ? '+' : '') + val.toFixed(2);
+             if(document.getElementById('dial-val')) document.getElementById('dial-val').innerText = dVal;
+             if(document.getElementById('por-val')) document.getElementById('por-val').innerText = dVal;
+        }
+        updWheelVis();
+        draw();
+        tick();
+    };
+
     function togSnd(){ state.mute=!state.mute; document.getElementById('btn-sound').innerText=state.mute?'🔇':'🔊'; }
     function tick(){
         if(state.mute) return;
@@ -523,7 +549,7 @@
             document.getElementById('empty-state').style.display='none'; document.getElementById('float-btns').style.display='flex';
             state.zoom=1; state.panX=0; state.panY=0; updateTransform(); resetAll(true);
             
-            createGridMesh(); // 重置网格
+            createGridMesh(); 
             requestAnimationFrame(()=>{gl.viewport(0,0,w,h);draw();});
             el.value = '';
         };
@@ -563,16 +589,13 @@
     }
     
     function uploadMesh() {
-        // 【关键修复】使用全局 Buffer，不再创建新的
         gl.bindBuffer(gl.ARRAY_BUFFER, bufP);
         gl.bufferData(gl.ARRAY_BUFFER, meshData.p, gl.DYNAMIC_DRAW);
-        
         gl.bindBuffer(gl.ARRAY_BUFFER, bufU);
         gl.bufferData(gl.ARRAY_BUFFER, meshData.u, gl.STATIC_DRAW);
     }
 
     function updateMeshP() {
-        // 【关键修复】必须先 Bind Buffer
         gl.bindBuffer(gl.ARRAY_BUFFER, bufP);
         gl.bufferData(gl.ARRAY_BUFFER, meshData.p, gl.DYNAMIC_DRAW); 
     }
@@ -614,7 +637,6 @@
             gl.bindTexture(gl.TEXTURE_2D, lutTex); 
         }
 
-        // 【重要】每次绘制前重新绑定属性指针，确保指向正确的 Buffer
         gl.bindBuffer(gl.ARRAY_BUFFER, bufP);
         const p = gl.getAttribLocation(prog, "p");
         gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
@@ -851,7 +873,7 @@
         if(!tex) return;
         const size = 33;
         const width = size * size; 
-        const height = size;       
+        const height = size;        
         const data = new Uint8Array(width * height * 4);
         let idx = 0;
         for(let y=0; y<height; y++) {
@@ -984,10 +1006,14 @@
                 const dy=sY-e.touches[0].clientY; 
                 let val=sV+dy*0.005; val=Math.max(-0.5,Math.min(0.5,val));
                 st[actWheel][targetKey]=val;
+                
+                // --- Fix: Correct ID for visual feedback ---
                 if(ch==='y'){
                     const lum = 120 - val * 100;
-                    document.getElementById('wheel-box').style.background = `radial-gradient(circle, #222, #000 ${lum}%)`;
+                    const z = document.getElementById('wheel-zone');
+                    if(z) z.style.background = `radial-gradient(circle, #222, #000 ${lum}%)`;
                 }
+
                 updWheelVis(); draw();
                 if(Math.abs(dy-ly)>8){ tick(); ly=dy; }
             },{passive:false});
@@ -1067,7 +1093,7 @@
             document.querySelectorAll('.p-chip').forEach(c=>c.classList.remove('active'));
             activeLut = null; 
             document.querySelectorAll('.lut-item').forEach(i=>i.classList.remove('active'));
-            createGridMesh(); // Reset geometry
+            createGridMesh(); 
             nav('adj', document.querySelectorAll('.nav-item')[1]);
             updWheelVis(); draw(); tick();
         }
