@@ -48,7 +48,20 @@
             touch-action: none; 
         }
         .crop-grid { position: absolute; inset: 0; opacity: 0.3; pointer-events: none; background: linear-gradient(to right, transparent 33%, #fff 33%, #fff 33.5%, transparent 33.5%, transparent 66%, #fff 66%, #fff 66.5%, transparent 66.5%), linear-gradient(to bottom, transparent 33%, #fff 33%, #fff 33.5%, transparent 33.5%, transparent 66%, #fff 66%, #fff 66.5%, transparent 66.5%); }
-        .crop-handle { position: absolute; width: 24px; height: 24px; border: 2px solid #fff; border-radius: 50%; background: var(--accent); z-index: 90; transform: translate(-50%, -50%); box-shadow: 0 0 10px var(--accent); }
+        
+        /* 修复：扩大锚点触摸热区 */
+        .crop-handle { 
+            position: absolute; width: 24px; height: 24px; 
+            border: 2px solid #fff; border-radius: 50%; background: var(--accent); 
+            z-index: 90; transform: translate(-50%, -50%); box-shadow: 0 0 10px var(--accent); 
+        }
+        /* 隐形点击区域 */
+        .crop-handle::after {
+            content: ''; position: absolute;
+            top: -15px; left: -15px; right: -15px; bottom: -15px;
+            border-radius: 50%;
+        }
+
         .ch-tl { top:0; left:0; } .ch-tr { top:0; left:100%; } .ch-bl { top:100%; left:0; } .ch-br { top:100%; left:100%; }
         .crop-btn-bar { position: absolute; bottom: 40px; left:0; right:0; display:flex; justify-content:center; gap:30px; z-index:100; pointer-events: auto; }
 
@@ -1063,8 +1076,15 @@
         if(show&&tex){
             ui.style.display='block'; const wrap=document.getElementById('canvas-wrap');
             const b=document.getElementById('crop-box');
-            b.style.width=wrap.offsetWidth*0.8+'px'; b.style.height=wrap.offsetHeight*0.8+'px';
-            b.style.left=wrap.offsetWidth*0.1+'px'; b.style.top=wrap.offsetHeight*0.1+'px';
+            
+            // --- 修复：调整初始裁剪框大小，避让底部按钮区 ---
+            // 初始高度设为 0.65 (65%)，顶部设为 0.1 (10%)
+            // 这样底部留白 = 1 - 0.1 - 0.65 = 0.25 (25%)，足够避开按钮
+            b.style.width=wrap.offsetWidth*0.8+'px'; 
+            b.style.height=wrap.offsetHeight*0.65+'px'; 
+            b.style.left=wrap.offsetWidth*0.1+'px'; 
+            b.style.top=wrap.offsetHeight*0.1+'px';
+            
         }else{ui.style.display='none';}
         tick();
     }
